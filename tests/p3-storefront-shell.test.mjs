@@ -31,7 +31,7 @@ test('homepage primary navigation retains real storefront routes', () => {
 });
 
 test('later-phase boundaries remain explicit where functionality is still inactive', () => {
-  assert.ok(read('cart.html').includes('Cart functionality will be connected in P6'));
+  assert.ok(read('cart.html').includes('Checkout remains inactive until later phases'));
   assert.ok(read('checkout.html').includes('Checkout will be activated in later test phases'));
   assert.ok(read('order-confirmation.html').includes('Order confirmation data will appear here after checkout integration'));
 });
