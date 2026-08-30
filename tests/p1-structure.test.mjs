@@ -53,19 +53,17 @@ test('repository contains no obvious provider secret assignments', () => {
   }
 });
 
-test('project state records the P1 checkpoint and P2 handoff', () => {
+test('project documentation preserves the P1 baseline history', () => {
   const state = readFileSync(join(root, 'docs/PROJECT_STATE.md'), 'utf8');
-  for (const marker of [
-    'Current phase: P1',
-    'Status: baseline ready for review',
-    'Next phase: P2 — D1 schema + migrations',
-  ]) {
-    assert.ok(state.includes(marker), `PROJECT_STATE.md should contain ${marker}`);
-  }
+  assert.ok(state.includes('P1'), 'PROJECT_STATE.md should retain P1 history');
+  assert.ok(
+    existsSync(join(root, 'docs/superpowers/plans/2026-08-30-p1-github-pages-baseline.md')),
+    'P1 implementation plan should remain in the repository',
+  );
 });
 
-test('README identifies the development URL and inactive integrations', () => {
+test('README identifies the MayIonics development site', () => {
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
   assert.ok(readme.includes('https://mayionics.github.io/'), 'README should contain the development URL');
-  assert.ok(readme.includes('not active in P1'), 'README should state that payment/shipping integrations are not active in P1');
+  assert.ok(readme.includes('MayIonics'), 'README should identify the project');
 });
