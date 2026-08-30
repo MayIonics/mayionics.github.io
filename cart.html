@@ -1,1 +1,28 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="MayIonics cart shell."><title>Cart | MayIonics</title><link rel="stylesheet" href="/assets/css/site.css"></head><body><header class="site-header"><div class="container header-inner"><a class="brand" href="/">MayIonics</a><nav class="primary-nav" aria-label="Primary navigation"><a href="/shop.html">Shop</a><a href="/categories.html">Categories</a><a href="/reviews.html">Seller Reviews</a><a href="/about.html">About</a><a href="/shipping-returns.html">Shipping &amp; Returns</a></nav><a class="cart-link" href="/cart.html" aria-current="page">Cart <span id="cart-count">0</span></a></div></header><main><section class="page-hero container"><p class="eyebrow">Shopping cart</p><h1>Your Cart</h1><p>Cart functionality will be connected in P6 after product and inventory behavior is established.</p></section><section class="section container"><div class="empty-state"><h2>Your cart is currently empty</h2><p class="muted">This is a static P3 shell. Items cannot be added or reserved yet.</p><a class="button" href="/shop.html">Browse Shop</a></div></section></main><footer class="site-footer"><div class="container footer-inner"><div><strong>MayIonics</strong><p>Independent marketplace for everyday finds.</p></div><nav aria-label="Footer navigation"><a href="/about.html">About</a><a href="/shipping-returns.html">Shipping &amp; Returns</a><a href="/about.html#contact">Contact</a><a href="/shipping-returns.html#privacy">Privacy</a><a href="/shipping-returns.html#terms">Terms</a></nav></div></footer><script type="module" src="/assets/js/site.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Review items saved in your MayIonics cart.">
+  <title>Cart | MayIonics</title>
+  <link rel="stylesheet" href="/assets/css/site.css">
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="/">MayIonics</a><nav class="primary-nav" aria-label="Primary navigation"><a href="/shop.html">Shop</a><a href="/categories.html">Categories</a><a href="/reviews.html">Seller Reviews</a><a href="/about.html">About</a><a href="/shipping-returns.html">Shipping &amp; Returns</a></nav><a class="cart-link" href="/cart.html" aria-current="page">Cart <span id="cart-count">0</span></a></div></header>
+<main>
+  <section class="page-hero container"><p class="eyebrow">Shopping cart</p><h1>Your Cart</h1><p>Your browser stores only product identifiers and quantities. Prices and availability shown here are display information and will be revalidated by the server before checkout.</p></section>
+  <section class="section container">
+    <div data-cart-items class="cart-list" aria-live="polite"></div>
+    <div data-cart-empty class="empty-state"><h2>Your cart is empty</h2><p class="muted">Add an available product from its product page.</p><a class="button" href="/shop.html">Browse Shop</a></div>
+    <div class="panel cart-checkout-panel" data-cart-checkout>
+      <strong><span data-cart-item-count>0</span> item(s) saved</strong>
+      <p class="muted">Checkout remains inactive until later phases. No reservation, payment, or shipping charge is created from this page yet.</p>
+      <button class="button" type="button" disabled>Continue to Checkout</button>
+    </div>
+  </section>
+</main>
+<footer class="site-footer"><div class="container footer-inner"><div><strong>MayIonics</strong><p>Independent marketplace for everyday finds.</p></div><nav aria-label="Footer navigation"><a href="/about.html">About</a><a href="/shipping-returns.html">Shipping &amp; Returns</a><a href="/about.html#contact">Contact</a><a href="/shipping-returns.html#privacy">Privacy</a><a href="/shipping-returns.html#terms">Terms</a></nav></div></footer>
+<script type="module" src="/assets/js/site.js"></script>
+<script type="module" src="/assets/js/cart.js"></script>
+</body>
+</html>

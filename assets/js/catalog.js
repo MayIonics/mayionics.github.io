@@ -8,12 +8,27 @@ import {
   publicProducts,
   sortProducts,
 } from './catalog-core.js';
+import { CART_STORAGE_KEY, addCartItem, normalizeCart } from './cart-core.js';
 
 function el(tag, options = {}) {
   const node = document.createElement(tag);
   if (options.className) node.className = options.className;
   if (options.text != null) node.textContent = options.text;
   return node;
+}
+
+function loadCart() {
+  try {
+    return normalizeCart(JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]'));
+  } catch {
+    return [];
+  }
+}
+
+function saveCart(cart) {
+  const normalized = normalizeCart(cart);
+  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(normalized));
+  window.dispatchEvent(new CustomEvent('mayionics:cart-changed', { detail: normalized }));
 }
 
 function productMedia(product) {
@@ -125,6 +140,19 @@ function appendProductImage(container, product) {
   }
 }
 
+function addToCartControl(product) {
+  const button = el('button', { className: 'button', text: 'Add to Cart' });
+  button.type = 'button';
+  button.setAttribute('data-add-to-cart', '');
+  button.disabled = !isPurchasable(product);
+  button.addEventListener('click', () => {
+    saveCart(addCartItem(loadCart(), product.id, 1));
+    button.textContent = 'Added to Cart';
+    setTimeout(() => { button.textContent = 'Add to Cart'; }, 1200);
+  });
+  return button;
+}
+
 function renderProduct() {
   const target = document.querySelector('[data-product-detail]');
   if (!target) return;
@@ -163,11 +191,11 @@ function renderProduct() {
     el('p', {
       className: 'muted',
       text: isPurchasable(product)
-        ? `${product.quantity} available. Cart and reservation controls will be activated in P6.`
+        ? `${product.quantity} available. Inventory will be revalidated by the server before checkout.`
         : 'This item cannot currently be purchased.',
     }),
   );
-  summary.append(availability);
+  summary.append(availability, addToCartControl(product));
 
   target.append(gallery, summary);
 }
