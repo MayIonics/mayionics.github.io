@@ -2,10 +2,10 @@
 
 Project: MayIonics  
 Repository: MayIonics/mayionics.github.io  
-Current phase: P9  
-Status: PayPal Sandbox checkout boundary implemented; final verification in progress  
+Current phase: P10  
+Status: authenticated Stripe TEST / PayPal Sandbox reconciliation implemented; final verification in progress  
 Development site: https://mayionics.github.io/  
-Next phase: P10 — Order reconciliation + webhooks
+Next phase: P11 — admin orders + EasyPost labels/tracking
 
 ## Verified Baselines
 
@@ -21,25 +21,28 @@ P5 added deployable Cloudflare Access JWT verification and D1-backed admin produ
 
 P6 added the quantity-only browser cart and D1 reservation-capacity safeguards through PR #7.
 
-P7 added the EasyPost TEST-mode shipping-rate boundary and corrected the reservation D1 binding through PR #8.
+P7 added the EasyPost TEST-mode shipping-rate boundary through PR #8.
 
 P8 added server-authoritative Stripe TEST-mode PaymentIntent creation, checkout replay protection, and unique reservation checkout claims through PR #9.
 
-## P9 Scope
+P9 added server-authoritative PayPal Sandbox order creation/capture while preserving Stripe behavior through PR #10.
 
-P9 implements server-authoritative PayPal Sandbox order creation and capture while preserving the Stripe checkout path.
+## P10 Scope
 
-- PayPal OAuth is hard-gated to `PAYPAL_MODE=sandbox` before network access and uses only the Sandbox OAuth endpoint with client-credentials authentication.
-- `POST /api/payments/paypal/create` accepts the same trusted identity/selection/customer fields as the Stripe checkout path; browser monetary totals remain rejected.
-- Reservation/product rows are re-read from `MAYIONICS_DB`, item subtotal is reconstructed from D1 integer-cent prices, and shipping is re-rated through EasyPost TEST mode before PayPal order creation.
-- Pending PayPal orders snapshot authoritative item/shipping/order data and use the same unique reservation claim ledger as Stripe.
-- PayPal order creation uses `intent=CAPTURE`, one authoritative USD purchase unit, item/shipping amount breakdown, and deterministic `PayPal-Request-Id`.
-- `checkout_attempts.provider_payment_id` stores the PayPal order ID.
-- `POST /api/payments/paypal/capture` verifies the local order number and exact PayPal order identity before provider capture.
-- Capture responses must contain exactly one completed capture with a provider capture ID, USD currency, and amount exactly equal to the local authoritative order total.
-- The PayPal capture ID is inserted into the provider-neutral `payments` ledger as `PENDING`.
-- Neither PayPal order creation nor capture marks the local order/payment `PAID`; P10 reconciliation remains authoritative.
-- Before any D1 deployment, migration `0003_checkout_attempts.sql` was broadened from Stripe-only to `STRIPE` or `PAYPAL`. No deployed migration history was rewritten.
+P10 adds authenticated provider webhook handling and authoritative payment/order/inventory reconciliation.
+
+- `POST /api/webhooks/stripe` requires `STRIPE_MODE=test` and verifies the raw request body against `Stripe-Signature` using the configured endpoint secret and a bounded timestamp tolerance.
+- Stripe events must report `livemode=false`; only supported PaymentIntent success/failure events are normalized.
+- `POST /api/webhooks/paypal` requires `PAYPAL_MODE=sandbox` and verifies webhook authenticity through PayPal's Sandbox webhook-signature verification endpoint.
+- PayPal verification requires the configured Sandbox client credentials and webhook ID; no live PayPal API base exists in the P10 runtime.
+- Supported PayPal capture events normalize the provider capture identity, exact USD amount, and outcome.
+- `migrations/0004_webhook_events.sql` adds a provider event ledger with unique `(provider, provider_event_id)` replay protection plus a product-quantity underflow guard.
+- Reconciliation loads the existing provider-neutral payment ledger by exact provider/payment identity and checks the authoritative stored amount/order total before any state transition.
+- On verified success, one D1 batch records the event, decrements inventory, marks zero-quantity products `SOLD`, consumes the order's reservations, moves the payment to `SUCCEEDED`, and moves the order to `PAID`.
+- A later authenticated success event for an already-paid matching payment/order is recorded as an idempotent no-op and cannot decrement inventory again.
+- On supported failure, one D1 batch records the event, changes the matching pending payment to `FAILED`, and changes the pending order payment state to `FAILED` / order state to `CANCELLED`; inventory is not decremented.
+- Provider event replay with conflicting payment identity/outcome is rejected.
+- Provider identity, Stripe order metadata, amount, currency, unsupported event type, and state conflicts are rejected before commerce state changes.
 
 ## Runtime Configuration Boundary
 
@@ -51,24 +54,26 @@ Runtime values remain outside the repository:
 - `MAYIONICS_SHIP_FROM_JSON`
 - `STRIPE_MODE=test`
 - `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
 - `PAYPAL_MODE=sandbox`
 - `PAYPAL_CLIENT_ID`
 - `PAYPAL_CLIENT_SECRET`
+- `PAYPAL_WEBHOOK_ID`
 
-No provider credential, client secret, customer payment credential, or live provider URL is committed.
+No provider credential, endpoint secret, customer payment credential, or production secret is committed.
 
-## Reconciliation Boundary
+## API / Webhook Race Boundary
 
-P8/P9 create pending local payment state only. P10 is responsible for validating Stripe/PayPal webhook/provider events, replay protection, provider identity, amount/currency, and safe transitions from PENDING to authoritative paid/failed states.
-
-Reservation consumption and product SOLD transitions remain deferred until verified payment reconciliation.
+Provider success can race local persistence. If an authenticated webhook arrives before the matching local `payments` row exists, P10 returns a non-success reconciliation response and does not mutate inventory/order state; provider retry can reconcile after the pending payment identity is persisted. Once reconciled, duplicate success is idempotent.
 
 ## Active Boundaries
 
-No PayPal, Stripe, or EasyPost provider request is performed in P9. No Worker/D1 deployment, webhook endpoint activation, production payment, or production commerce setting is created or modified.
+No Stripe, PayPal, or EasyPost provider request was executed during P10 repository implementation/tests. PayPal signature-verification network behavior is exercised only through test doubles.
 
-MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, payment configuration, secret, or infrastructure is modified by P9.
+No Worker/D1 deployment, webhook registration, secret configuration, production payment, real postage, or production commerce setting is created or modified.
+
+MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, provider configuration, secret, or infrastructure is modified by P10.
 
 ## Next
 
-After P9 verification and merge, P10 will add provider webhook/reconciliation safeguards for Stripe and PayPal while preserving the pending-order authority model established in P8/P9.
+After P10 verification and merge, P11 will implement Access-protected admin order views plus EasyPost TEST label/tracking fulfillment code. Real postage purchase remains prohibited until separately authorized.

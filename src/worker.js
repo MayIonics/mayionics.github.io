@@ -4,6 +4,7 @@ import { handleReservations } from './reservations.js';
 import { handleShippingRates } from './shipping-rates.js';
 import { handleStripeCheckout } from './stripe-checkout.js';
 import { handlePayPalCheckout } from './paypal-checkout.js';
+import { handlePaymentWebhook } from './payment-reconciliation.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8' } });
@@ -11,6 +12,10 @@ function json(data, status = 200) {
 
 export async function handleRequest(request, env) {
   const url = new URL(request.url);
+
+  if (url.pathname === '/api/webhooks/stripe' || url.pathname === '/api/webhooks/paypal') {
+    return handlePaymentWebhook(request, env);
+  }
 
   if (url.pathname === '/api/payments/paypal/create' || url.pathname === '/api/payments/paypal/capture') {
     return handlePayPalCheckout(request, env);

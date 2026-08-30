@@ -9,6 +9,7 @@ Current migrations:
 - `0001_initial_commerce.sql` — core commerce tables.
 - `0002_reservation_capacity_guards.sql` — database-level active reservation capacity guards.
 - `0003_checkout_attempts.sql` — Stripe/PayPal checkout idempotency and unique reservation-claim ledgers.
+- `0004_webhook_events.sql` — authenticated provider webhook replay ledger and product quantity underflow guard.
 
 No migration in the current series performs destructive table/column removal. Before any MayIonics D1 deployment, P9 broadened migration `0003` from Stripe-only checkout attempts to `STRIPE` or `PAYPAL`; there is no deployed migration history to rewrite.
 
@@ -24,6 +25,9 @@ No migration in the current series performs destructive table/column removal. Be
 - Active reservations cannot exceed current active product quantity; D1 triggers enforce this beneath Worker logic.
 - A reservation token can be claimed by at most one checkout attempt/order.
 - A checkout idempotency key maps to one request fingerprint, provider, and order.
+- A provider webhook event identity can be recorded at most once per provider.
+- Product quantity cannot transition below zero.
+- Payment success is not authoritative until a verified provider event matches local provider identity, order linkage where available, currency, and stored amount.
 - Append-only migrations are preferred; destructive schema changes require an explicit later migration and review.
 
 ## Tables
@@ -38,6 +42,8 @@ Condition values: `NEW`, `OPEN_BOX`, `PRE_OWNED`.
 
 `image_data` stores serialized image references/metadata, not image binary data.
 
+Migration `0004` adds an update trigger that aborts any product quantity transition below zero. Successful P10 reconciliation decrements quantity only inside the same D1 batch that records the webhook event and consumes the related reservations.
+
 ### `orders`
 
 Stores customer shipping information, authoritative totals, payment summary state, and fulfillment state.
@@ -46,7 +52,7 @@ Payment state: `PENDING`, `PAID`, `FAILED`, `PARTIALLY_REFUNDED`, `REFUNDED`.
 
 Order lifecycle: `PENDING`, `PAID`, `READY_TO_SHIP`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `REFUNDED`.
 
-P8/P9 checkout creates orders in `PENDING`; creating a Stripe PaymentIntent or capturing a PayPal Sandbox order does not by itself change a local order to `PAID`.
+P8/P9 checkout creates orders in `PENDING`. P10 is the first phase that can transition an order to `PAID`, and only after authenticated provider reconciliation.
 
 ### `order_items`
 
@@ -54,11 +60,11 @@ Stores immutable purchase snapshots. `product_title`, `unit_price_cents`, and `l
 
 ### `payments`
 
-Provider-neutral payment ledger for Stripe and PayPal. `(provider, provider_payment_id)` is unique so replayed callbacks or later webhook reconciliation cannot silently create duplicate provider identities.
+Provider-neutral payment ledger for Stripe and PayPal. `(provider, provider_payment_id)` is unique so replayed callbacks or webhook reconciliation cannot silently create duplicate provider identities.
 
 Payment lifecycle: `PENDING`, `SUCCEEDED`, `FAILED`, `PARTIALLY_REFUNDED`, `REFUNDED`.
 
-P8 stores a newly created Stripe PaymentIntent identity as `PENDING`. P9 stores a validated PayPal capture ID as `PENDING`. P10 webhook/provider reconciliation is responsible for authoritative payment success/failure transitions.
+P8 stores a newly created Stripe PaymentIntent identity as `PENDING`. P9 stores a validated PayPal capture ID as `PENDING`. P10 moves only a matching pending payment to `SUCCEEDED` or `FAILED` after provider-authenticated reconciliation.
 
 ### `shipments`
 
@@ -76,6 +82,8 @@ Lifecycle: `ACTIVE`, `CONSUMED`, `RELEASED`, `EXPIRED`.
 
 `reserved_quantity` supports products with quantity greater than one. Migration `0002` adds insert/update triggers that count only unexpired `ACTIVE` reservations and abort writes that would exceed current `ACTIVE` product quantity.
 
+P10 consumes the reservations belonging to a successfully reconciled order in the same D1 batch as payment/order/inventory transition. Duplicate authenticated success events do not consume the reservation or inventory again.
+
 ### `checkout_attempts`
 
 Added by P8 and broadened before deployment by P9 for provider-neutral checkout replay/idempotency control.
@@ -86,10 +94,8 @@ Added by P8 and broadened before deployment by P9 for provider-neutral checkout 
 - `provider` is constrained to `STRIPE` or `PAYPAL`.
 - `(provider, provider_payment_id)` is unique when provider identity exists.
 - For Stripe, `provider_payment_id` stores the PaymentIntent ID.
-- For PayPal, `provider_payment_id` stores the PayPal order ID; the completed capture identity is stored separately in `payments`.
+- For PayPal, `provider_payment_id` stores the PayPal order ID; the capture identity is stored in `payments`.
 - Lifecycle: `CREATING`, `PENDING`, `FAILED`.
-
-A same-key/same-fingerprint retry reuses the original pending order for the same provider. A same-key/different-fingerprint or same-key/different-provider replay is rejected.
 
 ### `checkout_reservation_claims`
 
@@ -97,20 +103,35 @@ Added by P8 as the database-level checkout race guard. `reservation_token` is th
 
 Each claim records its checkout attempt and order through foreign keys and is provider-neutral.
 
+### `webhook_events`
+
+Added by P10 as the authenticated provider event replay ledger.
+
+- `provider` is `STRIPE` or `PAYPAL`.
+- `provider_event_id` is the provider's webhook/event identity.
+- `(provider, provider_event_id)` is unique.
+- `provider_payment_id` records the exact PaymentIntent or PayPal capture identity used for reconciliation.
+- `event_type` and `outcome` preserve the normalized provider event semantics.
+- `payload_hash` stores a SHA-256 digest rather than the raw webhook payload.
+- `result` is `APPLIED` or `IDEMPOTENT`.
+- `processed_at` and `created_at` provide audit timestamps.
+
+The event insert is included in the same D1 batch as the state transition so a failed transition cannot leave a successful-looking webhook audit row, and a duplicate provider event cannot replay inventory mutation.
+
 ## Foreign-Key Policy
 
-Commerce history is preserved with restrictive deletion behavior for products, orders, order items, payments, shipments, checkout attempts, and checkout reservation claims. Reservation `order_id` may become null if an associated temporary order is removed, while the reservation audit record remains.
+Commerce history is preserved with restrictive deletion behavior for products, orders, order items, payments, shipments, checkout attempts, and checkout reservation claims. `webhook_events` intentionally stores provider/audit identities without a foreign key so a historical authenticated event record does not depend on later commerce-row retention.
 
 Permanent catalog deletion is not required for V1; products can be marked `HIDDEN`.
 
 ## Indexing
 
-The schema includes indexes for common product, order, payment, shipment, reservation, checkout-attempt, and checkout-claim lookups. Indexes can be refined later using observed query patterns; speculative analytics indexes remain out of scope.
+The schema includes indexes for common product, order, payment, shipment, reservation, checkout-attempt, checkout-claim, and provider-webhook lookups. Indexes can be refined later using observed query patterns; speculative analytics indexes remain out of scope.
 
 ## Security and Authority Boundary
 
-The browser never accesses D1 directly. Cloudflare Worker code remains authoritative for price, inventory, reservation validity, shipping measurements/rates, order totals, provider payment identity, and fulfillment transitions.
+The browser never accesses D1 directly. Cloudflare Worker code remains authoritative for price, inventory, reservation validity, shipping measurements/rates, order totals, provider payment identity, payment reconciliation, and fulfillment transitions.
 
 Browser-submitted subtotal, shipping amount, total, product price, package measurement, or payment status values are not trusted.
 
-No provider secrets belong in migrations, browser code, or schema documentation.
+Stripe webhook signatures and PayPal Sandbox webhook verification must succeed before a provider event is normalized or reconciled. No provider secrets belong in migrations, browser code, or schema documentation.
