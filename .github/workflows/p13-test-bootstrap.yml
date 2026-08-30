@@ -86,7 +86,37 @@ jobs:
           EOF
           echo "path=$CONFIG" >> "$GITHUB_OUTPUT"
 
+      - name: Detect existing current P13 TEST schema
+        id: schema_state
+        shell: bash
+        env:
+          DB_ID: ${{ steps.d1.outputs.database_id }}
+          CONFIG: ${{ steps.config.outputs.path }}
+        run: |
+          set -euo pipefail
+          RESULT="$(npx --yes wrangler@4.102.0 d1 execute "$DB_ID" --remote --command="SELECT type, name FROM sqlite_master WHERE type IN ('table','trigger') ORDER BY type, name" --json --config="$CONFIG")"
+          printf '%s\n' "$RESULT" > "$RUNNER_TEMP/p13-schema-state.json"
+
+          COMPLETE=true
+          for object in products orders order_items payments shipments product_reservations checkout_attempts checkout_reservation_claims webhook_events label_purchase_attempts reservation_capacity_before_insert reservation_capacity_before_update; do
+            if ! grep -q "\"$object\"" "$RUNNER_TEMP/p13-schema-state.json"; then
+              COMPLETE=false
+            fi
+          done
+
+          if [ "$COMPLETE" = true ]; then
+            echo 'current_schema_complete=true' >> "$GITHUB_OUTPUT"
+            echo 'Current P13 TEST schema is already complete. Skipping current P13 migrations.'
+          elif grep -q '"products"' "$RUNNER_TEMP/p13-schema-state.json"; then
+            echo 'Partial MayIonics TEST schema detected; refusing to reapply non-idempotent migrations.'
+            exit 1
+          else
+            echo 'current_schema_complete=false' >> "$GITHUB_OUTPUT"
+            echo 'Empty TEST schema detected; current P13 migrations will be applied.'
+          fi
+
       - name: Apply all migrations to TEST D1
+        if: steps.schema_state.outputs.current_schema_complete != 'true'
         shell: bash
         env:
           DB_ID: ${{ steps.d1.outputs.database_id }}

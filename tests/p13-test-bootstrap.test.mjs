@@ -50,6 +50,13 @@ test('bootstrap applies migrations remotely before deploying and verifies health
   assert.match(yaml, /label_purchase_attempts/);
 });
 
+test('bootstrap is retry-safe after current P13 schema has already been applied', () => {
+  const yaml = readFileSync(path, 'utf8');
+  assert.match(yaml, /current_schema_complete/);
+  assert.match(yaml, /label_purchase_attempts/);
+  assert.match(yaml, /Skipping current P13 migrations/);
+});
+
 test('bootstrap does not configure or invoke commerce provider secrets', () => {
   const yaml = readFileSync(path, 'utf8');
   for (const name of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID', 'EASYPOST_API_KEY']) {
