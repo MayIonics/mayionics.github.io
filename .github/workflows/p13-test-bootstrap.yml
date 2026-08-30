@@ -104,9 +104,14 @@ jobs:
         env:
           CONFIG: ${{ steps.config.outputs.path }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           OUTPUT="$(npx --yes wrangler@4.102.0 deploy --config="$CONFIG" --keep-vars 2>&1)"
+          STATUS=$?
           printf '%s\n' "$OUTPUT"
+          if [ "$STATUS" -ne 0 ]; then
+            echo "Wrangler deploy failed with exit code $STATUS"
+            exit "$STATUS"
+          fi
           URL="$(printf '%s\n' "$OUTPUT" | grep -Eo 'https://[^ ]+\.workers\.dev' | tail -n1)"
           test -n "$URL" || { echo 'TEST Worker URL not found in Wrangler output'; exit 1; }
           echo "worker_url=$URL" >> "$GITHUB_OUTPUT"
