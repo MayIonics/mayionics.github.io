@@ -1,0 +1,146 @@
+name: P13 TEST Environment Bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TEST_DATABASE_NAME: mayionics-test
+      TEST_WORKER_NAME: mayionics-api-test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Require Cloudflare TEST bootstrap credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing CLOUDFLARE_ACCOUNT_ID'; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Missing CLOUDFLARE_API_TOKEN'; exit 1; }
+
+      - name: Verify Wrangler
+        run: npx --yes wrangler@4.102.0 --version
+
+      - name: Find or create dedicated TEST D1 database
+        id: d1
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database"
+          AUTH="Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
+
+          LIST_JSON="$(curl --fail-with-body --silent --show-error "$API?per_page=100" -H "$AUTH")"
+          DB_ID="$(printf '%s' "$LIST_JSON" | jq -r --arg name "$TEST_DATABASE_NAME" '.result[]? | select(.name == $name) | .uuid' | head -n1)"
+
+          if [ -z "$DB_ID" ]; then
+            CREATE_JSON="$(curl --fail-with-body --silent --show-error -X POST "$API" -H "$AUTH" -H 'Content-Type: application/json' --data "{\"name\":\"${TEST_DATABASE_NAME}\"}")"
+            DB_ID="$(printf '%s' "$CREATE_JSON" | jq -r '.result.uuid // empty')"
+          fi
+
+          test -n "$DB_ID" || { echo 'Unable to resolve TEST D1 database ID'; exit 1; }
+          echo "database_id=$DB_ID" >> "$GITHUB_OUTPUT"
+          echo "Resolved dedicated TEST D1 database: $TEST_DATABASE_NAME"
+
+      - name: Generate temporary TEST Worker configuration
+        id: config
+        shell: bash
+        env:
+          DB_ID: ${{ steps.d1.outputs.database_id }}
+        run: |
+          set -euo pipefail
+          CONFIG="$RUNNER_TEMP/wrangler.p13.jsonc"
+          cat > "$CONFIG" <<EOF
+          {
+            "name": "mayionics-api-test",
+            "main": "src/worker.js",
+            "compatibility_date": "2026-08-30",
+            "workers_dev": true,
+            "keep_vars": true,
+            "vars": {
+              "EASYPOST_MODE": "test",
+              "STRIPE_MODE": "test",
+              "PAYPAL_MODE": "sandbox"
+            },
+            "d1_databases": [
+              {
+                "binding": "MAYIONICS_DB",
+                "database_name": "mayionics-test",
+                "database_id": "$DB_ID"
+              }
+            ]
+          }
+          EOF
+          echo "path=$CONFIG" >> "$GITHUB_OUTPUT"
+
+      - name: Apply all migrations to TEST D1
+        shell: bash
+        env:
+          DB_ID: ${{ steps.d1.outputs.database_id }}
+          CONFIG: ${{ steps.config.outputs.path }}
+        run: |
+          set -euo pipefail
+          for migration in migrations/*.sql; do
+            echo "Applying $migration to $TEST_DATABASE_NAME"
+            npx --yes wrangler@4.102.0 d1 execute "$DB_ID" --remote --file="$migration" --yes --config="$CONFIG"
+          done
+
+      - name: Deploy dedicated TEST Worker
+        id: deploy
+        shell: bash
+        env:
+          CONFIG: ${{ steps.config.outputs.path }}
+        run: |
+          set -euo pipefail
+          OUTPUT="$(npx --yes wrangler@4.102.0 deploy --config="$CONFIG" --keep-vars 2>&1)"
+          printf '%s\n' "$OUTPUT"
+          URL="$(printf '%s\n' "$OUTPUT" | grep -Eo 'https://[^ ]+\.workers\.dev' | tail -n1)"
+          test -n "$URL" || { echo 'TEST Worker URL not found in Wrangler output'; exit 1; }
+          echo "worker_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Verify TEST Worker health
+        shell: bash
+        env:
+          WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+        run: |
+          set -euo pipefail
+          STATUS="$(curl --silent --show-error --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' "$WORKER_URL/health")"
+          cat "$RUNNER_TEMP/health.json"
+          test "$STATUS" = '200' || { echo "Health check failed with HTTP $STATUS"; exit 1; }
+          jq -e '.ok == true and .service == "mayionics-api"' "$RUNNER_TEMP/health.json" >/dev/null
+
+      - name: Verify TEST D1 schema
+        shell: bash
+        env:
+          DB_ID: ${{ steps.d1.outputs.database_id }}
+          CONFIG: ${{ steps.config.outputs.path }}
+        run: |
+          set -euo pipefail
+          RESULT="$(npx --yes wrangler@4.102.0 d1 execute "$DB_ID" --remote --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" --json --config="$CONFIG")"
+          printf '%s\n' "$RESULT" > "$RUNNER_TEMP/d1-schema.json"
+          for table in products orders order_items payments shipments product_reservations checkout_attempts checkout_reservation_claims webhook_events label_purchase_attempts; do
+            grep -q "\"$table\"" "$RUNNER_TEMP/d1-schema.json" || { echo "Missing TEST D1 table: $table"; exit 1; }
+          done
+          echo 'TEST D1 schema verification passed.'
+
+      - name: Report TEST bootstrap checkpoint
+        shell: bash
+        env:
+          WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+        run: |
+          echo "MayIonics TEST Worker: $WORKER_URL"
+          echo "MayIonics TEST D1: $TEST_DATABASE_NAME"
+          echo 'Provider credentials and webhook registrations remain intentionally unconfigured.'
