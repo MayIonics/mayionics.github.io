@@ -1,6 +1,7 @@
 import { verifyAccessJwt } from './access-auth.js';
 import { handleAdminProducts } from './admin-products.js';
 import { handleReservations } from './reservations.js';
+import { handleShippingRates } from './shipping-rates.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8' } });
@@ -8,6 +9,10 @@ function json(data, status = 200) {
 
 export async function handleRequest(request, env) {
   const url = new URL(request.url);
+
+  if (url.pathname === '/api/shipping/rates') {
+    return handleShippingRates(request, env);
+  }
 
   if (url.pathname.startsWith('/api/reservations')) {
     return handleReservations(request, env);
