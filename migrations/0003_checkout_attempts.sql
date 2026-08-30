@@ -1,4 +1,4 @@
--- MayIonics P8 checkout idempotency ledger
+-- MayIonics P8 checkout idempotency and reservation-claim ledgers
 -- Append-only migration for Cloudflare D1 / SQLite.
 
 CREATE TABLE IF NOT EXISTS checkout_attempts (
@@ -17,3 +17,16 @@ CREATE TABLE IF NOT EXISTS checkout_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_checkout_attempts_status_created
   ON checkout_attempts(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS checkout_reservation_claims (
+  reservation_token TEXT PRIMARY KEY,
+  checkout_attempt_id TEXT NOT NULL,
+  order_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (reservation_token) REFERENCES product_reservations(reservation_token) ON DELETE RESTRICT,
+  FOREIGN KEY (checkout_attempt_id) REFERENCES checkout_attempts(id) ON DELETE RESTRICT,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_checkout_reservation_claims_order
+  ON checkout_reservation_claims(order_id);
