@@ -2,10 +2,10 @@
 
 Project: MayIonics  
 Repository: MayIonics/mayionics.github.io  
-Current phase: P11  
-Status: Access-protected admin orders and EasyPost TEST label/tracking workflow implemented; final verification in progress  
+Current phase: P12  
+Status: seller reviews and pre-launch policy/about content implemented; final verification in progress  
 Development site: https://mayionics.github.io/  
-Next phase: P12 — seller reviews + policy/about content
+Next phase: P13 — complete TEST/Sandbox checkout verification
 
 ## Verified Baselines
 
@@ -29,39 +29,34 @@ P9 added server-authoritative PayPal Sandbox order creation/capture while preser
 
 P10 added authenticated Stripe TEST / PayPal Sandbox webhook reconciliation, provider-event replay protection, authoritative payment/order transitions, reservation consumption, and inventory decrement through PR #11.
 
-## P11 Scope
+P11 added Access-protected admin order views plus TEST-only EasyPost label/tracking fulfillment through PR #12.
 
-P11 adds the private admin order/fulfillment workflow while preserving the existing Cloudflare Access boundary.
+## P12 Scope
 
-- `GET /api/admin/orders` lists recent orders.
-- `GET /api/admin/orders/:id` returns order, item, payment, and shipment detail.
-- `POST /api/admin/orders/:id/shipping-label` is eligible only when `payment_status=PAID` and the order is `PAID` or already `READY_TO_SHIP`.
-- Label purchase uses the original authoritative EasyPost `provider_shipment_id` and `provider_rate_id` stored during checkout.
-- The EasyPost adapter is hard-gated to `EASYPOST_MODE=test` before network access.
-- Provider responses must report `mode=test`, the same shipment identity, a tracking code, and a label URL before local persistence.
-- `migrations/0005_label_purchase_attempts.sql` adds one unique label-purchase claim per local shipment to reduce duplicate/concurrent purchases and preserve retry state.
-- Successful TEST label metadata updates the shipment to `LABEL_CREATED`; when every shipment for an order has label/tracking data, the order moves from `PAID` to `READY_TO_SHIP`.
-- `POST /api/admin/orders/:id/mark-shipped` requires all shipment labels/tracking metadata and moves `READY_TO_SHIP` to `SHIPPED`.
-- No public admin route bypass is added; order handlers are reached only after the existing `verifyAccessJwt` check.
+P12 completes the non-commerce trust and policy layer.
 
-## Runtime Configuration Boundary
+- `reviews.html` now shows selected historical eBay seller feedback from the supplied public feedback record.
+- Historical feedback is explicitly labeled as eBay seller feedback and explicitly not presented as MayIonics purchase reviews.
+- The page links to the public eBay feedback profile for independent source verification.
+- NutriLeaf/Etsy product reviews are not reused for MayIonics.
+- `about.html` explains the independent resale model, changing one-off inventory, and condition-transparency expectations.
+- `shipping-returns.html` contains a pre-launch U.S. tracked-shipping and returns policy, including a planned 30-day return window subject to final launch review.
+- `privacy.html` explains expected order data, provider-handled payment credentials, localStorage cart behavior, service providers, retention/security, and the pre-launch status.
+- `terms.html` covers condition, availability, authoritative pricing/payment, shipping, returns, cancellation/errors, and development-site status.
+- Homepage footer links directly to the Privacy and Terms pages.
 
-Runtime values remain outside the repository, including `MAYIONICS_DB`, EasyPost TEST configuration, Stripe TEST configuration, PayPal Sandbox configuration, and Cloudflare Access configuration.
+## Policy Boundary
 
-No provider credential, endpoint secret, customer payment credential, or production secret is committed.
+P12 policy pages are pre-launch drafts. They are intended to prevent empty or misleading placeholders during development, but they must receive a final legal/business review in P14 before production checkout is enabled.
 
-## Provider / Fulfillment Boundary
-
-P11 contains a TEST-only EasyPost buy-label adapter, but no EasyPost request or postage purchase was executed during repository implementation/tests. Test doubles validate request construction and provider response checks.
-
-No label purchase is allowed for an unpaid order. Real postage remains prohibited until separately authorized.
+No customer contact email or other invented contact detail is published; a dedicated contact method remains a launch-preparation requirement.
 
 ## Active Boundaries
 
-No Worker/D1 deployment, Cloudflare Access change, provider secret configuration, Stripe/PayPal operation, EasyPost provider request, real postage purchase, or production commerce action is performed in P11 repository implementation.
+P12 changes only storefront content/documentation. No Worker/D1 runtime, migration, Cloudflare setting, provider secret, Stripe/PayPal operation, EasyPost request, real postage purchase, production payment, or production commerce setting is created or modified.
 
 MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, provider configuration, secret, or infrastructure is modified.
 
 ## Next
 
-After P11 verification and merge, P12 will complete seller-review presentation plus About, Shipping & Returns, Privacy, and Terms content without activating production commerce.
+P13 requires deployment of the already-tested Worker/D1 architecture into a dedicated non-production MayIonics environment plus TEST/Sandbox provider credentials and webhook configuration so end-to-end checkout paths can be exercised. Production/live provider modes remain prohibited.
