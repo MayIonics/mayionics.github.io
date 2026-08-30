@@ -6,15 +6,15 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P8 adds the server-authoritative Stripe TEST-mode checkout boundary for future deployment.
+P9 adds the server-authoritative PayPal Sandbox checkout boundary while preserving the P8 Stripe TEST checkout path.
 
-The Stripe create route accepts reservation identities, requested carrier/service, customer details, and an idempotency key—not browser-calculated monetary totals. The Worker re-reads reservation/product data from `MAYIONICS_DB`, reconstructs item subtotal from D1 integer-cent prices, re-rates shipping through the EasyPost TEST adapter, creates one pending order, snapshots order items and shipping components, and then can create a Stripe PaymentIntent using the authoritative total.
+PayPal authentication and Orders v2 calls are hard-gated to Sandbox mode. PayPal create reuses the same authority model as Stripe: reservation/product data is re-read from `MAYIONICS_DB`, item subtotal comes from D1 integer-cent prices, shipping is re-rated through EasyPost TEST mode, and the provider order uses only the resulting authoritative USD amount. Deterministic `PayPal-Request-Id` values provide provider-side idempotency.
 
-Checkout retries are protected by an append-only `checkout_attempts` ledger. A second database ledger gives each reservation token one unique checkout claim, preventing two different pending orders from racing to use the same reservation. Stripe calls are hard-gated to `STRIPE_MODE=test`, use a deterministic provider idempotency key, and reject live-mode or amount/currency-mismatched responses.
+PayPal capture verifies the local order number, exact PayPal order ID, completed capture identity, USD currency, and authoritative amount before storing the capture ID in the local `payments` ledger as `PENDING`. Neither create nor capture marks the local order paid; P10 webhook/provider reconciliation remains authoritative.
 
-PaymentIntent creation does not mark an order paid. Payment/order success transitions remain deferred to P10 webhook/provider reconciliation.
+Before any MayIonics D1 deployment, the P8 checkout-attempt provider constraint was broadened to allow `STRIPE` or `PAYPAL`. The unique reservation-claim ledger remains provider-neutral and prevents two checkout attempts from claiming the same reservation.
 
-No Stripe or EasyPost request, provider key, Cloudflare deployment, PayPal operation, or production commerce action is performed by P8.
+No PayPal, Stripe, or EasyPost provider request, provider secret, Cloudflare deployment, live provider URL, or production commerce action is performed by P9.
 
 ## Planned architecture
 
@@ -38,6 +38,7 @@ No Stripe or EasyPost request, provider key, Cloudflare deployment, PayPal opera
 - [P6 implementation plan](docs/superpowers/plans/2026-08-30-p6-cart-reservations.md)
 - [P7 implementation plan](docs/superpowers/plans/2026-08-30-p7-easypost-rates.md)
 - [P8 implementation plan](docs/superpowers/plans/2026-08-30-p8-stripe-test-checkout.md)
+- [P9 implementation plan](docs/superpowers/plans/2026-08-30-p9-paypal-sandbox-checkout.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 
