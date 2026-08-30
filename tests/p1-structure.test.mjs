@@ -52,3 +52,20 @@ test('repository contains no obvious provider secret assignments', () => {
     assert.equal(pattern.test(content), false, `${relative(root, file)} contains an apparent provider secret assignment`);
   }
 });
+
+test('project state records the P1 checkpoint and P2 handoff', () => {
+  const state = readFileSync(join(root, 'docs/PROJECT_STATE.md'), 'utf8');
+  for (const marker of [
+    'Current phase: P1',
+    'Status: baseline ready for review',
+    'Next phase: P2 — D1 schema + migrations',
+  ]) {
+    assert.ok(state.includes(marker), `PROJECT_STATE.md should contain ${marker}`);
+  }
+});
+
+test('README identifies the development URL and inactive integrations', () => {
+  const readme = readFileSync(join(root, 'README.md'), 'utf8');
+  assert.ok(readme.includes('https://mayionics.github.io/'), 'README should contain the development URL');
+  assert.ok(readme.includes('not active in P1'), 'README should state that payment/shipping integrations are not active in P1');
+});
