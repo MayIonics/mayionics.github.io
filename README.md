@@ -6,15 +6,15 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P9 adds the server-authoritative PayPal Sandbox checkout boundary while preserving the P8 Stripe TEST checkout path.
+P10 adds authenticated Stripe TEST and PayPal Sandbox payment reconciliation while preserving the P8/P9 checkout authority model.
 
-PayPal authentication and Orders v2 calls are hard-gated to Sandbox mode. PayPal create reuses the same authority model as Stripe: reservation/product data is re-read from `MAYIONICS_DB`, item subtotal comes from D1 integer-cent prices, shipping is re-rated through EasyPost TEST mode, and the provider order uses only the resulting authoritative USD amount. Deterministic `PayPal-Request-Id` values provide provider-side idempotency.
+Webhook handlers now verify provider authenticity before touching commerce state. Stripe uses the raw request body plus `Stripe-Signature` and a configured TEST webhook secret. PayPal uses the Sandbox webhook-signature verification endpoint with the configured Sandbox webhook ID and client credentials.
 
-PayPal capture verifies the local order number, exact PayPal order ID, completed capture identity, USD currency, and authoritative amount before storing the capture ID in the local `payments` ledger as `PENDING`. Neither create nor capture marks the local order paid; P10 webhook/provider reconciliation remains authoritative.
+Authenticated supported events are normalized to an exact provider payment identity, USD amount, and outcome. The Worker then matches the existing local `payments` row and authoritative order total before applying any transition. Successful reconciliation records the provider event, consumes reservations, decrements inventory, marks zero-quantity products sold, moves the payment to `SUCCEEDED`, and moves the order to `PAID` in one D1 batch. Matching duplicate success events are idempotent and cannot decrement inventory twice.
 
-Before any MayIonics D1 deployment, the P8 checkout-attempt provider constraint was broadened to allow `STRIPE` or `PAYPAL`. The unique reservation-claim ledger remains provider-neutral and prevents two checkout attempts from claiming the same reservation.
+A new `webhook_events` ledger provides unique provider-event replay protection, and a database trigger blocks negative product quantity. Supported terminal failure events can mark a matching pending payment/order failed/cancelled without decrementing inventory.
 
-No PayPal, Stripe, or EasyPost provider request, provider secret, Cloudflare deployment, live provider URL, or production commerce action is performed by P9.
+No provider request, secret configuration, Cloudflare deployment, live payment, production commerce action, real postage purchase, or NutriLeaf change is performed by P10 repository implementation.
 
 ## Planned architecture
 
@@ -39,6 +39,7 @@ No PayPal, Stripe, or EasyPost provider request, provider secret, Cloudflare dep
 - [P7 implementation plan](docs/superpowers/plans/2026-08-30-p7-easypost-rates.md)
 - [P8 implementation plan](docs/superpowers/plans/2026-08-30-p8-stripe-test-checkout.md)
 - [P9 implementation plan](docs/superpowers/plans/2026-08-30-p9-paypal-sandbox-checkout.md)
+- [P10 implementation plan](docs/superpowers/plans/2026-08-30-p10-payment-reconciliation.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 
