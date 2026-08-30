@@ -6,17 +6,20 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P4 adds the first real product-catalog behavior to the storefront. Home, Shop, and Product pages now share a tested catalog model for product validation, price and condition formatting, availability filtering, sorting, filters, featured/new-arrival rendering, and slug-based product detail lookup.
+P5 implements the local security and product-management backend for the future private admin environment.
 
-The public product source intentionally begins empty. Test fixtures verify product behavior without publishing fake items for sale. Real inventory will be added through the product-management path rather than by presenting demo listings as live products.
+The Worker now contains server-side Cloudflare Access JWT verification using RS256, issuer/audience/time validation, and an administrator email allowlist before any `/api/admin/` product route is dispatched. Product administration supports list, create, update, and hide operations against the planned `MAYIONICS_DB` D1 binding; permanent product deletion is intentionally not implemented.
 
-The initial D1 schema from P2 remains defined and CI-verified but has not yet been applied to a Cloudflare database. The P4 browser catalog is a development source only; a later Worker/D1 implementation will remain authoritative for price, inventory, checkout, shipping, and payment decisions.
+An unlinked `/admin/` client is included for future add/edit/hide workflows. On the current public GitHub Pages host it intentionally disables admin operations because Cloudflare Access, the Worker, and D1 are not deployed there.
+
+The initial D1 schema remains CI-verified but unapplied. No Cloudflare resource, Access policy, credential, secret, Stripe/PayPal setting, EasyPost setting, or NutriLeaf resource is changed by P5.
 
 ## Planned architecture
 
 - GitHub Pages storefront
 - Cloudflare Worker backend
 - Cloudflare D1 data store
+- Cloudflare Access-protected admin routes
 - Stripe card payments
 - PayPal checkout
 - EasyPost rates, labels, and tracking
@@ -29,6 +32,7 @@ The initial D1 schema from P2 remains defined and CI-verified but has not yet be
 - [P2 implementation plan](docs/superpowers/plans/2026-08-30-p2-d1-schema-migrations.md)
 - [P3 implementation plan](docs/superpowers/plans/2026-08-30-p3-storefront-shell.md)
 - [P4 implementation plan](docs/superpowers/plans/2026-08-30-p4-product-catalog.md)
+- [P5 implementation plan](docs/superpowers/plans/2026-08-30-p5-admin-products.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 

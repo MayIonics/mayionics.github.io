@@ -2,10 +2,10 @@
 
 Project: MayIonics  
 Repository: MayIonics/mayionics.github.io  
-Current phase: P4  
-Status: product catalog implemented; verification in progress  
+Current phase: P5  
+Status: local admin security/product management implemented; verification in progress  
 Development site: https://mayionics.github.io/  
-Next phase: P5 — Admin authentication + product management
+Next phase: P6 — Cart + reservations
 
 ## Verified Baselines
 
@@ -13,36 +13,47 @@ P1 established and published the GitHub Pages storefront foundation through PR #
 
 P2 defined the initial Cloudflare D1 / SQLite commerce schema through PR #2. The append-only migration is verified in CI but has not been applied to a Cloudflare D1 resource.
 
-P3 established the full static customer-facing storefront shell through PR #4: Home, Shop, Categories, Product, Seller Reviews, About, Shipping & Returns, Cart, Checkout, and Order Confirmation.
+P3 established the full static customer-facing storefront shell through PR #4.
 
-## P4 Scope
+P4 added tested catalog behavior through PR #5 while deliberately keeping the public product source empty until real MayIonics inventory is intentionally listed.
 
-P4 adds the first real catalog behavior without publishing fake inventory.
+## P5 Scope
 
-- `assets/js/products.js` is the current public product source and intentionally begins empty.
-- `assets/js/catalog-core.js` provides testable product validation, price/condition formatting, public availability filtering, catalog filters, sorting, and slug lookup.
-- `assets/js/catalog.js` renders Home, Shop, and Product page catalog views.
-- Shop filters become active when real products exist.
-- Product pages resolve a product from the `slug` query parameter and safely show unavailable/not-found states.
-- Home New Arrivals and Featured Items use the same product source.
-- Product records align with the P2 commerce model for price, inventory, condition, category, status, and featured state.
+P5 implements the deployable security and product-management code for the future private admin environment without creating Cloudflare resources.
 
-P4 test fixtures validate catalog behavior without appearing on the public website. The public site remains empty until real MayIonics inventory is intentionally added.
+- `src/access-auth.js` verifies `Cf-Access-Jwt-Assertion` using RS256 and the configured Cloudflare Access JWK endpoint.
+- JWT policy validates issuer, application audience, `exp` / `nbf`, and an `ADMIN_EMAILS` allowlist.
+- `src/admin-products.js` implements authenticated product list/create/update/hide operations against the `MAYIONICS_DB` D1 binding.
+- Product input validation enforces integer cents, inventory constraints, allowed condition/status values, image-reference arrays, and positive package measurements.
+- Product deletion is intentionally absent; hiding uses the existing `HIDDEN` lifecycle state.
+- `src/worker.js` performs Access verification before dispatching any `/api/admin/` handler.
+- `/admin/` contains the future management client for add/edit/hide operations.
+- The admin client detects the current `github.io` host and disables all admin API operations there because the protected Worker/Access boundary is not deployed yet.
+- The public storefront does not link to `/admin/`.
 
-## Authority Boundary
+P5 tests include an ephemeral RSA keypair and signed JWT to verify the actual Web Crypto signature-validation path without committing credentials.
 
-The P4 source is a development catalog source, not the final commerce authority. A later Cloudflare Worker/D1 integration will become authoritative for product price, quantity, availability, checkout totals, reservations, shipping, and payment state.
+## Cloudflare Deployment Boundary
 
-No browser-side product value is trusted for future checkout decisions.
+No Cloudflare connector is available in the current ChatGPT environment. P5 therefore does not create a Worker, D1 database, Access application, policy, audience tag, team-domain binding, or admin-email binding.
+
+When deployment is authorized and technically available, every admin entrypoint must remain behind Cloudflare Access and the Worker must continue independently validating the Access JWT. Direct Worker bypass must not expose admin routes.
+
+Required runtime configuration is deliberately absent from the repository:
+
+- `CF_ACCESS_TEAM_DOMAIN`
+- `CF_ACCESS_AUD`
+- `ADMIN_EMAILS`
+- D1 binding `MAYIONICS_DB`
 
 ## Active Boundaries
 
-There is no active Cloudflare Worker API or D1 database connection yet. There is no functional cart/reservation system, shipping-rate integration, Stripe, PayPal, admin authentication, live checkout, or production commerce activation.
+There is no live admin API, active D1 connection, functional customer cart/reservation system, shipping-rate integration, Stripe, PayPal, live checkout, or production commerce activation.
 
 No provider credentials or secrets belong in the repository or browser code.
 
-MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, payment configuration, secret, or infrastructure is modified by P4.
+MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, payment configuration, secret, or infrastructure is modified by P5.
 
 ## Next
 
-After P4 verification and merge, P5 will establish protected admin access and product-management boundaries. Actual Cloudflare resource creation will remain a separate controlled step when required.
+After P5 verification and merge, P6 will implement cart state and server-side inventory reservation logic locally against the existing D1 contract. Infrastructure activation remains separately controlled.

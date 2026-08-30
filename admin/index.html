@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>MayIonics Admin</title>
+  <link rel="stylesheet" href="/assets/css/site.css">
+</head>
+<body>
+  <main class="container prose" style="padding-top:3rem">
+    <p class="eyebrow">Private administration</p>
+    <h1>MayIonics Admin</h1>
+    <div class="notice" data-admin-status>Checking admin environment…</div>
+
+    <section class="panel" style="margin-top:1rem" data-admin-panel hidden>
+      <h2>Products</h2>
+      <p class="muted">Create and update catalog records. Authentication is enforced by the server; this interface is not a security boundary.</p>
+      <form data-product-form>
+        <div class="field"><label for="slug">Slug</label><input id="slug" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*"></div>
+        <div class="field"><label for="title">Title</label><input id="title" name="title" required></div>
+        <div class="field"><label for="description">Description</label><textarea id="description" name="description" required rows="5"></textarea></div>
+        <div class="field"><label for="price">Price in cents</label><input id="price" name="price_cents" type="number" min="0" step="1" required></div>
+        <div class="field"><label for="quantity">Quantity</label><input id="quantity" name="quantity" type="number" min="0" step="1" value="1" required></div>
+        <div class="field"><label for="condition">Condition</label><select id="condition" name="condition"><option value="NEW">New</option><option value="OPEN_BOX">Open Box</option><option value="PRE_OWNED">Pre-Owned</option></select></div>
+        <div class="field"><label for="category">Category</label><input id="category" name="category" required></div>
+        <div class="field"><label for="images">Image URLs (one per line)</label><textarea id="images" name="images" rows="4"></textarea></div>
+        <div class="field"><label for="weight">Weight (oz)</label><input id="weight" name="weight_oz" type="number" min="0" step="0.01"></div>
+        <div class="field"><label for="length">Length (in)</label><input id="length" name="length_in" type="number" min="0" step="0.01"></div>
+        <div class="field"><label for="width">Width (in)</label><input id="width" name="width_in" type="number" min="0" step="0.01"></div>
+        <div class="field"><label for="height">Height (in)</label><input id="height" name="height_in" type="number" min="0" step="0.01"></div>
+        <div class="field"><label for="status">Status</label><select id="status" name="status"><option value="ACTIVE">Active</option><option value="RESERVED">Reserved</option><option value="SOLD">Sold</option><option value="HIDDEN">Hidden</option></select></div>
+        <label><input type="checkbox" name="featured"> Featured item</label>
+        <button class="button" type="submit">Create Product</button>
+      </form>
+      <div data-admin-message aria-live="polite"></div>
+      <div data-product-list style="margin-top:2rem"></div>
+    </section>
+  </main>
+  <script type="module" src="/admin/admin.js"></script>
+</body>
+</html>
