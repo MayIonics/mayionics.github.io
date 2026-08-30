@@ -6,13 +6,13 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P11 adds Access-protected admin order management and TEST-only EasyPost label/tracking fulfillment on top of the P10 reconciliation baseline.
+P12 completes the storefront trust/content layer while keeping production commerce inactive.
 
-Admin order routes can list orders, show item/payment/shipment detail, create TEST labels for reconciled paid orders, and mark fully labeled orders shipped. The EasyPost buy-label adapter refuses non-test mode, requires the original stored shipment/rate identities, and validates returned shipment identity, tracking code, and label URL before persisting `LABEL_CREATED` state.
+The Seller Reviews page now presents selected historical eBay seller feedback from the supplied public feedback record, clearly identifies it as prior eBay feedback rather than MayIonics purchase reviews, and links to the public eBay profile for independent verification. NutriLeaf/Etsy product reviews are not reused for MayIonics.
 
-A new `label_purchase_attempts` ledger gives each shipment one unique purchase claim and tracks `CLAIMED`, `COMPLETED`, or `FAILED` state to reduce duplicate/concurrent purchases. Once every shipment has a label and tracking number, the order moves from `PAID` to `READY_TO_SHIP`; `mark-shipped` then moves it to `SHIPPED`.
+The About page explains the independent resale model and condition-transparency approach. Shipping & Returns, Privacy, and Terms now contain pre-launch Version 1 policy content covering U.S. tracked shipping, planned returns, customer/order data, provider-handled payment credentials, localStorage cart state, product condition/availability, authoritative pricing/payment, and development-site status. These policy drafts require a final P14 launch review before production checkout is enabled.
 
-No EasyPost provider request, real postage purchase, Cloudflare deployment, provider secret configuration, live payment, production commerce action, or NutriLeaf change is performed by P11 repository implementation.
+P12 changes storefront content and documentation only. It does not modify Worker/D1 commerce behavior or perform any Cloudflare, Stripe, PayPal, EasyPost, production-commerce, or NutriLeaf action.
 
 ## Planned architecture
 
@@ -39,6 +39,7 @@ No EasyPost provider request, real postage purchase, Cloudflare deployment, prov
 - [P9 implementation plan](docs/superpowers/plans/2026-08-30-p9-paypal-sandbox-checkout.md)
 - [P10 implementation plan](docs/superpowers/plans/2026-08-30-p10-payment-reconciliation.md)
 - [P11 implementation plan](docs/superpowers/plans/2026-08-30-p11-admin-orders-labels.md)
+- [P12 implementation plan](docs/superpowers/plans/2026-08-30-p12-reviews-policies.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 
