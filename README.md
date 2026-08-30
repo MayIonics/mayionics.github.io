@@ -6,13 +6,15 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P6 adds a persistent quantity-only browser cart and the server-side reservation safeguards required for limited inventory.
+P7 adds the server-side EasyPost TEST-mode shipping-rate boundary for future deployment.
 
-The browser stores only product IDs and quantities. It does not persist authoritative prices, totals, shipping charges, payment state, or inventory decisions. Product pages can add purchasable catalog items to the cart, and the Cart page supports quantity changes and removal while checkout remains intentionally inactive.
+Shipping requests accept quantity-only cart items and a U.S. destination address. The Worker re-reads active product inventory and package measurements from the planned `MAYIONICS_DB` binding, builds conservative per-unit parcels, and can create EasyPost Shipment rating requests only when the runtime is explicitly configured for TEST mode. Provider rate strings are normalized to integer cents and compatible multi-parcel carrier/service options are combined without trusting browser-supplied shipping data.
 
-The Worker now includes public reservation create/release handlers for the future D1 deployment. A second append-only migration adds database triggers that reject active reservations exceeding currently unexpired product inventory. CI applies all migrations in order and behaviorally verifies oversell protection and capacity restoration after release.
+The EasyPost adapter refuses non-test configuration before network access and rejects non-test provider Shipment responses. No EasyPost request, label, postage purchase, tracker, API key, or ship-from address is included in the repository or performed during P7.
 
-The P5 Cloudflare Access-protected admin implementation remains repository-only. The D1 migrations and Worker are not deployed yet. No Stripe, PayPal, EasyPost, Cloudflare resource, credential, secret, or NutriLeaf resource is changed by P6.
+P7 also corrects the P6 reservation handler to use the established `MAYIONICS_DB` D1 binding consistently with the P5 admin backend.
+
+The Worker/D1 implementation remains repository-only. No Stripe, PayPal, EasyPost, Cloudflare resource, credential, secret, or NutriLeaf resource is changed by P7.
 
 ## Planned architecture
 
@@ -34,6 +36,7 @@ The P5 Cloudflare Access-protected admin implementation remains repository-only.
 - [P4 implementation plan](docs/superpowers/plans/2026-08-30-p4-product-catalog.md)
 - [P5 implementation plan](docs/superpowers/plans/2026-08-30-p5-admin-products.md)
 - [P6 implementation plan](docs/superpowers/plans/2026-08-30-p6-cart-reservations.md)
+- [P7 implementation plan](docs/superpowers/plans/2026-08-30-p7-easypost-rates.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 

@@ -28,7 +28,8 @@ function expiryIso(ttlSeconds = DEFAULT_TTL_SECONDS) {
 }
 
 async function createReservation(request, env) {
-  if (!env?.DB) return json({ error: 'reservation_unavailable' }, 503);
+  const db = env?.MAYIONICS_DB;
+  if (!db) return json({ error: 'reservation_unavailable' }, 503);
   let body;
   try {
     body = await request.json();
@@ -44,11 +45,11 @@ async function createReservation(request, env) {
   const id = crypto.randomUUID();
   const token = `${crypto.randomUUID()}${crypto.randomUUID().replaceAll('-', '')}`;
 
-  const expire = env.DB.prepare(
+  const expire = db.prepare(
     "UPDATE product_reservations SET status = 'EXPIRED', updated_at = ? WHERE status = 'ACTIVE' AND expires_at <= ?",
   ).bind(createdAt, createdAt);
 
-  const insert = env.DB.prepare(
+  const insert = db.prepare(
     `INSERT INTO product_reservations (
       id, product_id, order_id, reservation_token, reserved_quantity,
       status, expires_at, created_at, updated_at
@@ -56,7 +57,7 @@ async function createReservation(request, env) {
   ).bind(id, validated.product_id, token, validated.quantity, expiresAt, createdAt, createdAt);
 
   try {
-    await env.DB.batch([expire, insert]);
+    await db.batch([expire, insert]);
   } catch (error) {
     const message = String(error?.message || error);
     if (message.includes('reservation_capacity_exceeded')) {
@@ -76,10 +77,11 @@ async function createReservation(request, env) {
 }
 
 async function releaseReservation(token, env) {
-  if (!env?.DB) return json({ error: 'reservation_unavailable' }, 503);
+  const db = env?.MAYIONICS_DB;
+  if (!db) return json({ error: 'reservation_unavailable' }, 503);
   if (!token) return json({ error: 'invalid_reservation_token' }, 400);
   const updatedAt = nowIso();
-  const result = await env.DB.prepare(
+  const result = await db.prepare(
     "UPDATE product_reservations SET status = 'RELEASED', updated_at = ? WHERE reservation_token = ? AND status = 'ACTIVE'",
   ).bind(updatedAt, token).run();
   const changes = result?.meta?.changes ?? result?.changes ?? 0;

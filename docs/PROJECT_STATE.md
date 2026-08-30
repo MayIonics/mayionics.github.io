@@ -2,10 +2,10 @@
 
 Project: MayIonics  
 Repository: MayIonics/mayionics.github.io  
-Current phase: P6  
-Status: cart and reservation safeguards implemented; final verification in progress  
+Current phase: P7  
+Status: EasyPost TEST-rate boundary implemented; final verification in progress  
 Development site: https://mayionics.github.io/  
-Next phase: P7 — EasyPost shipping rates
+Next phase: P8 — Stripe checkout
 
 ## Verified Baselines
 
@@ -19,36 +19,48 @@ P4 added tested catalog behavior through PR #5 while deliberately keeping the pu
 
 P5 added deployable Cloudflare Access JWT verification and D1-backed admin product-management code through PR #6. No Cloudflare resources were deployed.
 
-## P6 Scope
+P6 added the quantity-only browser cart and D1 reservation-capacity safeguards through PR #7.
 
-P6 adds customer cart behavior and the server-side inventory reservation safeguards needed for limited-quantity products.
+## P7 Scope
 
-- The browser cart persists only `product_id` and integer `quantity` under versioned local storage key `mayionics.cart.v1`.
-- Cart normalization discards browser-supplied titles, prices, totals, availability, and other untrusted fields.
-- Product pages expose Add to Cart only for purchasable catalog records.
-- The Cart page supports quantity changes and item removal while clearly stating that displayed catalog pricing is not authoritative.
-- Checkout remains inactive in P6.
-- `POST /api/reservations` creates a bounded 15-minute reservation token through the Worker/D1 path.
-- `POST /api/reservations/:token/release` releases an active reservation.
-- Reservation creation marks stale active reservations expired before the new write.
-- `migrations/0002_reservation_capacity_guards.sql` adds SQLite/D1 insert and update triggers that reject active reservations exceeding currently unexpired inventory capacity.
-- The database trigger is the final oversell guard beneath browser and Worker logic.
-- CI now applies every migration in order and behaviorally proves that one-unit inventory cannot receive two simultaneous active reservations, then verifies capacity becomes available after release.
+P7 implements the server-side EasyPost shipping-rate boundary for future TEST-mode deployment without making an EasyPost request.
 
-## Authority Boundary
+- `POST /api/shipping/rates` accepts only quantity-only cart items plus a U.S. destination address.
+- Browser-supplied product price, title, weight, dimensions, availability, or shipping values are rejected/not trusted.
+- Products and package measurements are re-read from the authoritative `MAYIONICS_DB` binding.
+- Requested quantity is checked against active product inventory before rating.
+- Every cart unit is conservatively represented as its own parcel; no unverified multi-item packing algorithm is used.
+- Parcel weight uses ounces and dimensions use inches, matching the stored MayIonics product model and EasyPost parcel units.
+- The EasyPost adapter is hard-gated to `EASYPOST_MODE=test` before network access and rejects provider Shipment responses not marked `mode: test`.
+- EasyPost decimal rate strings are normalized to integer cents.
+- Multi-parcel choices are combined only when the same carrier, service, and currency is available for every parcel; provider shipment/rate IDs remain attached as quote components.
+- A P6 integration correction aligns reservation code with the established D1 binding name `MAYIONICS_DB`.
 
-Browser cart data is convenience state only. It is never authoritative for price, product status, inventory, totals, shipping, or payment. Later checkout code must re-read products and reservation state from D1 before creating an order or provider payment.
+## Runtime Configuration Boundary
 
-Reservation tokens are bearer-capability identifiers. They must not be logged into public pages or treated as proof of payment. P6 does not consume reservations into paid orders.
+The following runtime values remain outside the repository:
 
-## Infrastructure Boundary
+- `EASYPOST_API_KEY`
+- `EASYPOST_MODE=test`
+- `MAYIONICS_SHIP_FROM_JSON`
+- D1 binding `MAYIONICS_DB`
 
-The P6 Worker and D1 code remains repository-only. No MayIonics Worker, D1 database, Access application, or production resource is created or modified in this phase.
+No EasyPost API key or ship-from address is committed. The shipping handler returns configuration errors rather than attempting a request when TEST-mode configuration is incomplete.
 
-No Stripe, PayPal, or EasyPost request is performed. No provider credentials or secrets belong in the repository or browser code.
+## Provider Boundary
 
-MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, payment configuration, secret, or infrastructure is modified by P6.
+P7 contains an EasyPost TEST-mode adapter but no provider request was executed during implementation. No label, postage, tracker, or production EasyPost operation is created.
+
+Shipping-rate results are quotes only. P7 does not persist a selected rate, create an order, activate checkout, or purchase a label.
+
+## Active Boundaries
+
+The Worker and D1 code remain repository-only. No MayIonics Worker, D1 database, Cloudflare Access application, EasyPost account setting, Stripe setting, PayPal setting, or production resource is created or modified by P7.
+
+No provider credentials or secrets belong in the repository or browser code.
+
+MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, payment configuration, secret, or infrastructure is modified by P7.
 
 ## Next
 
-After P6 verification and merge, P7 will implement EasyPost shipping-rate calculation in TEST mode. Shipping-rate requests will use authoritative product package dimensions/weight and a customer destination; label purchase remains a later fulfillment phase.
+After P7 verification and merge, P8 will implement Stripe TEST-mode checkout locally. It must re-read authoritative product/reservation/shipping values before creating a provider payment and will remain unable to perform a Stripe request until TEST credentials and deployment infrastructure are explicitly configured.
