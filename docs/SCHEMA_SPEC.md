@@ -8,9 +8,9 @@ Current migrations:
 
 - `0001_initial_commerce.sql` — core commerce tables.
 - `0002_reservation_capacity_guards.sql` — database-level active reservation capacity guards.
-- `0003_checkout_attempts.sql` — Stripe checkout idempotency and unique reservation-claim ledgers.
+- `0003_checkout_attempts.sql` — Stripe/PayPal checkout idempotency and unique reservation-claim ledgers.
 
-No migration in the current series performs destructive table/column removal.
+No migration in the current series performs destructive table/column removal. Before any MayIonics D1 deployment, P9 broadened migration `0003` from Stripe-only checkout attempts to `STRIPE` or `PAYPAL`; there is no deployed migration history to rewrite.
 
 ## Core Invariants
 
@@ -23,7 +23,7 @@ No migration in the current series performs destructive table/column removal.
 - Product reservations have explicit expiry and lifecycle state.
 - Active reservations cannot exceed current active product quantity; D1 triggers enforce this beneath Worker logic.
 - A reservation token can be claimed by at most one checkout attempt/order.
-- A checkout idempotency key maps to one request fingerprint and one order.
+- A checkout idempotency key maps to one request fingerprint, provider, and order.
 - Append-only migrations are preferred; destructive schema changes require an explicit later migration and review.
 
 ## Tables
@@ -46,7 +46,7 @@ Payment state: `PENDING`, `PAID`, `FAILED`, `PARTIALLY_REFUNDED`, `REFUNDED`.
 
 Order lifecycle: `PENDING`, `PAID`, `READY_TO_SHIP`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `REFUNDED`.
 
-P8 creates orders in `PENDING`; PaymentIntent creation alone never changes an order to `PAID`.
+P8/P9 checkout creates orders in `PENDING`; creating a Stripe PaymentIntent or capturing a PayPal Sandbox order does not by itself change a local order to `PAID`.
 
 ### `order_items`
 
@@ -58,7 +58,7 @@ Provider-neutral payment ledger for Stripe and PayPal. `(provider, provider_paym
 
 Payment lifecycle: `PENDING`, `SUCCEEDED`, `FAILED`, `PARTIALLY_REFUNDED`, `REFUNDED`.
 
-A newly created Stripe PaymentIntent is stored as `PENDING`. P10 webhook/provider reconciliation is responsible for authoritative payment success/failure transitions.
+P8 stores a newly created Stripe PaymentIntent identity as `PENDING`. P9 stores a validated PayPal capture ID as `PENDING`. P10 webhook/provider reconciliation is responsible for authoritative payment success/failure transitions.
 
 ### `shipments`
 
@@ -66,7 +66,7 @@ Stores EasyPost shipment/rate identifiers, carrier/service, cost, tracking numbe
 
 Lifecycle: `PENDING`, `LABEL_CREATED`, `IN_TRANSIT`, `DELIVERED`, `CANCELLED`, `ERROR`.
 
-During P8, selected TEST shipping-rate components are snapshotted as `PENDING` shipment rows for the pending order. A populated rate/shipment row does not prove payment or authorize postage purchase.
+Selected TEST shipping-rate components are snapshotted as `PENDING` shipment rows for a pending order. A populated rate/shipment row does not prove payment or authorize postage purchase.
 
 ### `product_reservations`
 
@@ -78,22 +78,24 @@ Lifecycle: `ACTIVE`, `CONSUMED`, `RELEASED`, `EXPIRED`.
 
 ### `checkout_attempts`
 
-Added by P8 for Stripe checkout replay/idempotency control.
+Added by P8 and broadened before deployment by P9 for provider-neutral checkout replay/idempotency control.
 
 - `idempotency_key` is globally unique.
 - `request_fingerprint` detects conflicting reuse of the same key.
 - `order_id` is unique so one checkout attempt owns one pending order.
-- `provider` is constrained to `STRIPE` in P8.
+- `provider` is constrained to `STRIPE` or `PAYPAL`.
 - `(provider, provider_payment_id)` is unique when provider identity exists.
+- For Stripe, `provider_payment_id` stores the PaymentIntent ID.
+- For PayPal, `provider_payment_id` stores the PayPal order ID; the completed capture identity is stored separately in `payments`.
 - Lifecycle: `CREATING`, `PENDING`, `FAILED`.
 
-A same-key/same-fingerprint retry reuses the original pending order and the same Stripe idempotency header. A same-key/different-fingerprint retry is rejected.
+A same-key/same-fingerprint retry reuses the original pending order for the same provider. A same-key/different-fingerprint or same-key/different-provider replay is rejected.
 
 ### `checkout_reservation_claims`
 
 Added by P8 as the database-level checkout race guard. `reservation_token` is the primary key, so two different checkout attempts cannot claim the same reservation token even if they race after both read it as active.
 
-Each claim records its checkout attempt and order through foreign keys.
+Each claim records its checkout attempt and order through foreign keys and is provider-neutral.
 
 ## Foreign-Key Policy
 
