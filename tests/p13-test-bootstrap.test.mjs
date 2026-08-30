@@ -57,6 +57,14 @@ test('bootstrap is retry-safe after current P13 schema has already been applied'
   assert.match(yaml, /Skipping current P13 migrations/);
 });
 
+test('deploy step disables inherited errexit before capturing Wrangler failure output', () => {
+  const yaml = readFileSync(path, 'utf8');
+  const deployStep = yaml.slice(yaml.indexOf('- name: Deploy dedicated TEST Worker'));
+  assert.match(deployStep, /set \+e/);
+  assert.match(deployStep, /STATUS=\$\?/);
+  assert.match(deployStep, /Wrangler deploy failed with exit code/);
+});
+
 test('bootstrap does not configure or invoke commerce provider secrets', () => {
   const yaml = readFileSync(path, 'utf8');
   for (const name of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID', 'EASYPOST_API_KEY']) {
