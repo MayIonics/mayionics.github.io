@@ -1,12 +1,13 @@
--- MayIonics P8 checkout idempotency and reservation-claim ledgers
+-- MayIonics P8/P9 checkout idempotency and reservation-claim ledgers
 -- Append-only migration for Cloudflare D1 / SQLite.
+-- P9 broadens the provider constraint before this migration has been deployed to D1.
 
 CREATE TABLE IF NOT EXISTS checkout_attempts (
   id TEXT PRIMARY KEY,
   idempotency_key TEXT NOT NULL UNIQUE,
   request_fingerprint TEXT NOT NULL,
   order_id TEXT NOT NULL UNIQUE,
-  provider TEXT NOT NULL DEFAULT 'STRIPE' CHECK (provider IN ('STRIPE')),
+  provider TEXT NOT NULL DEFAULT 'STRIPE' CHECK (provider IN ('STRIPE', 'PAYPAL')),
   provider_payment_id TEXT,
   status TEXT NOT NULL DEFAULT 'CREATING' CHECK (status IN ('CREATING', 'PENDING', 'FAILED')),
   created_at TEXT NOT NULL,
