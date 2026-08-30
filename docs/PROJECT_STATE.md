@@ -2,58 +2,53 @@
 
 Project: MayIonics  
 Repository: MayIonics/mayionics.github.io  
-Current phase: P5  
-Status: local admin security/product management implemented; verification in progress  
+Current phase: P6  
+Status: cart and reservation safeguards implemented; final verification in progress  
 Development site: https://mayionics.github.io/  
-Next phase: P6 — Cart + reservations
+Next phase: P7 — EasyPost shipping rates
 
 ## Verified Baselines
 
 P1 established and published the GitHub Pages storefront foundation through PR #1.
 
-P2 defined the initial Cloudflare D1 / SQLite commerce schema through PR #2. The append-only migration is verified in CI but has not been applied to a Cloudflare D1 resource.
+P2 defined the initial Cloudflare D1 / SQLite commerce schema through PR #2.
 
 P3 established the full static customer-facing storefront shell through PR #4.
 
 P4 added tested catalog behavior through PR #5 while deliberately keeping the public product source empty until real MayIonics inventory is intentionally listed.
 
-## P5 Scope
+P5 added deployable Cloudflare Access JWT verification and D1-backed admin product-management code through PR #6. No Cloudflare resources were deployed.
 
-P5 implements the deployable security and product-management code for the future private admin environment without creating Cloudflare resources.
+## P6 Scope
 
-- `src/access-auth.js` verifies `Cf-Access-Jwt-Assertion` using RS256 and the configured Cloudflare Access JWK endpoint.
-- JWT policy validates issuer, application audience, `exp` / `nbf`, and an `ADMIN_EMAILS` allowlist.
-- `src/admin-products.js` implements authenticated product list/create/update/hide operations against the `MAYIONICS_DB` D1 binding.
-- Product input validation enforces integer cents, inventory constraints, allowed condition/status values, image-reference arrays, and positive package measurements.
-- Product deletion is intentionally absent; hiding uses the existing `HIDDEN` lifecycle state.
-- `src/worker.js` performs Access verification before dispatching any `/api/admin/` handler.
-- `/admin/` contains the future management client for add/edit/hide operations.
-- The admin client detects the current `github.io` host and disables all admin API operations there because the protected Worker/Access boundary is not deployed yet.
-- The public storefront does not link to `/admin/`.
+P6 adds customer cart behavior and the server-side inventory reservation safeguards needed for limited-quantity products.
 
-P5 tests include an ephemeral RSA keypair and signed JWT to verify the actual Web Crypto signature-validation path without committing credentials.
+- The browser cart persists only `product_id` and integer `quantity` under versioned local storage key `mayionics.cart.v1`.
+- Cart normalization discards browser-supplied titles, prices, totals, availability, and other untrusted fields.
+- Product pages expose Add to Cart only for purchasable catalog records.
+- The Cart page supports quantity changes and item removal while clearly stating that displayed catalog pricing is not authoritative.
+- Checkout remains inactive in P6.
+- `POST /api/reservations` creates a bounded 15-minute reservation token through the Worker/D1 path.
+- `POST /api/reservations/:token/release` releases an active reservation.
+- Reservation creation marks stale active reservations expired before the new write.
+- `migrations/0002_reservation_capacity_guards.sql` adds SQLite/D1 insert and update triggers that reject active reservations exceeding currently unexpired inventory capacity.
+- The database trigger is the final oversell guard beneath browser and Worker logic.
+- CI now applies every migration in order and behaviorally proves that one-unit inventory cannot receive two simultaneous active reservations, then verifies capacity becomes available after release.
 
-## Cloudflare Deployment Boundary
+## Authority Boundary
 
-No Cloudflare connector is available in the current ChatGPT environment. P5 therefore does not create a Worker, D1 database, Access application, policy, audience tag, team-domain binding, or admin-email binding.
+Browser cart data is convenience state only. It is never authoritative for price, product status, inventory, totals, shipping, or payment. Later checkout code must re-read products and reservation state from D1 before creating an order or provider payment.
 
-When deployment is authorized and technically available, every admin entrypoint must remain behind Cloudflare Access and the Worker must continue independently validating the Access JWT. Direct Worker bypass must not expose admin routes.
+Reservation tokens are bearer-capability identifiers. They must not be logged into public pages or treated as proof of payment. P6 does not consume reservations into paid orders.
 
-Required runtime configuration is deliberately absent from the repository:
+## Infrastructure Boundary
 
-- `CF_ACCESS_TEAM_DOMAIN`
-- `CF_ACCESS_AUD`
-- `ADMIN_EMAILS`
-- D1 binding `MAYIONICS_DB`
+The P6 Worker and D1 code remains repository-only. No MayIonics Worker, D1 database, Access application, or production resource is created or modified in this phase.
 
-## Active Boundaries
+No Stripe, PayPal, or EasyPost request is performed. No provider credentials or secrets belong in the repository or browser code.
 
-There is no live admin API, active D1 connection, functional customer cart/reservation system, shipping-rate integration, Stripe, PayPal, live checkout, or production commerce activation.
-
-No provider credentials or secrets belong in the repository or browser code.
-
-MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, payment configuration, secret, or infrastructure is modified by P5.
+MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, payment configuration, secret, or infrastructure is modified by P6.
 
 ## Next
 
-After P5 verification and merge, P6 will implement cart state and server-side inventory reservation logic locally against the existing D1 contract. Infrastructure activation remains separately controlled.
+After P6 verification and merge, P7 will implement EasyPost shipping-rate calculation in TEST mode. Shipping-rate requests will use authoritative product package dimensions/weight and a customer destination; label purchase remains a later fulfillment phase.
