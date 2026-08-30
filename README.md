@@ -6,13 +6,13 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P5 implements the local security and product-management backend for the future private admin environment.
+P6 adds a persistent quantity-only browser cart and the server-side reservation safeguards required for limited inventory.
 
-The Worker now contains server-side Cloudflare Access JWT verification using RS256, issuer/audience/time validation, and an administrator email allowlist before any `/api/admin/` product route is dispatched. Product administration supports list, create, update, and hide operations against the planned `MAYIONICS_DB` D1 binding; permanent product deletion is intentionally not implemented.
+The browser stores only product IDs and quantities. It does not persist authoritative prices, totals, shipping charges, payment state, or inventory decisions. Product pages can add purchasable catalog items to the cart, and the Cart page supports quantity changes and removal while checkout remains intentionally inactive.
 
-An unlinked `/admin/` client is included for future add/edit/hide workflows. On the current public GitHub Pages host it intentionally disables admin operations because Cloudflare Access, the Worker, and D1 are not deployed there.
+The Worker now includes public reservation create/release handlers for the future D1 deployment. A second append-only migration adds database triggers that reject active reservations exceeding currently unexpired product inventory. CI applies all migrations in order and behaviorally verifies oversell protection and capacity restoration after release.
 
-The initial D1 schema remains CI-verified but unapplied. No Cloudflare resource, Access policy, credential, secret, Stripe/PayPal setting, EasyPost setting, or NutriLeaf resource is changed by P5.
+The P5 Cloudflare Access-protected admin implementation remains repository-only. The D1 migrations and Worker are not deployed yet. No Stripe, PayPal, EasyPost, Cloudflare resource, credential, secret, or NutriLeaf resource is changed by P6.
 
 ## Planned architecture
 
@@ -33,6 +33,7 @@ The initial D1 schema remains CI-verified but unapplied. No Cloudflare resource,
 - [P3 implementation plan](docs/superpowers/plans/2026-08-30-p3-storefront-shell.md)
 - [P4 implementation plan](docs/superpowers/plans/2026-08-30-p4-product-catalog.md)
 - [P5 implementation plan](docs/superpowers/plans/2026-08-30-p5-admin-products.md)
+- [P6 implementation plan](docs/superpowers/plans/2026-08-30-p6-cart-reservations.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 
