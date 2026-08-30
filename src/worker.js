@@ -1,5 +1,6 @@
 import { verifyAccessJwt } from './access-auth.js';
 import { handleAdminProducts } from './admin-products.js';
+import { handleAdminOrders } from './admin-orders.js';
 import { handleReservations } from './reservations.js';
 import { handleShippingRates } from './shipping-rates.js';
 import { handleStripeCheckout } from './stripe-checkout.js';
@@ -37,6 +38,7 @@ export async function handleRequest(request, env) {
     const auth = await verifyAccessJwt(request, env);
     if (!auth.ok) return json({ error: 'admin_unauthorized', reason: auth.reason }, auth.status);
     if (url.pathname.startsWith('/api/admin/products')) return handleAdminProducts(request, env);
+    if (url.pathname.startsWith('/api/admin/orders')) return handleAdminOrders(request, env);
     return json({ error: 'not_found' }, 404);
   }
 
