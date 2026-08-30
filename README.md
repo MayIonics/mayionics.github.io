@@ -6,15 +6,15 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P7 adds the server-side EasyPost TEST-mode shipping-rate boundary for future deployment.
+P8 adds the server-authoritative Stripe TEST-mode checkout boundary for future deployment.
 
-Shipping requests accept quantity-only cart items and a U.S. destination address. The Worker re-reads active product inventory and package measurements from the planned `MAYIONICS_DB` binding, builds conservative per-unit parcels, and can create EasyPost Shipment rating requests only when the runtime is explicitly configured for TEST mode. Provider rate strings are normalized to integer cents and compatible multi-parcel carrier/service options are combined without trusting browser-supplied shipping data.
+The Stripe create route accepts reservation identities, requested carrier/service, customer details, and an idempotency key—not browser-calculated monetary totals. The Worker re-reads reservation/product data from `MAYIONICS_DB`, reconstructs item subtotal from D1 integer-cent prices, re-rates shipping through the EasyPost TEST adapter, creates one pending order, snapshots order items and shipping components, and then can create a Stripe PaymentIntent using the authoritative total.
 
-The EasyPost adapter refuses non-test configuration before network access and rejects non-test provider Shipment responses. No EasyPost request, label, postage purchase, tracker, API key, or ship-from address is included in the repository or performed during P7.
+Checkout retries are protected by an append-only `checkout_attempts` ledger. A second database ledger gives each reservation token one unique checkout claim, preventing two different pending orders from racing to use the same reservation. Stripe calls are hard-gated to `STRIPE_MODE=test`, use a deterministic provider idempotency key, and reject live-mode or amount/currency-mismatched responses.
 
-P7 also corrects the P6 reservation handler to use the established `MAYIONICS_DB` D1 binding consistently with the P5 admin backend.
+PaymentIntent creation does not mark an order paid. Payment/order success transitions remain deferred to P10 webhook/provider reconciliation.
 
-The Worker/D1 implementation remains repository-only. No Stripe, PayPal, EasyPost, Cloudflare resource, credential, secret, or NutriLeaf resource is changed by P7.
+No Stripe or EasyPost request, provider key, Cloudflare deployment, PayPal operation, or production commerce action is performed by P8.
 
 ## Planned architecture
 
@@ -37,6 +37,7 @@ The Worker/D1 implementation remains repository-only. No Stripe, PayPal, EasyPos
 - [P5 implementation plan](docs/superpowers/plans/2026-08-30-p5-admin-products.md)
 - [P6 implementation plan](docs/superpowers/plans/2026-08-30-p6-cart-reservations.md)
 - [P7 implementation plan](docs/superpowers/plans/2026-08-30-p7-easypost-rates.md)
+- [P8 implementation plan](docs/superpowers/plans/2026-08-30-p8-stripe-test-checkout.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 

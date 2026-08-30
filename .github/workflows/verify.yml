@@ -25,7 +25,7 @@ jobs:
       - name: Run structural tests
         run: npm test
 
-      - name: Validate D1 migrations and reservation capacity
+      - name: Validate D1 migrations, reservation capacity, and checkout claims
         run: |
           python - <<'PY'
           import sqlite3
@@ -43,6 +43,8 @@ jobs:
               'payments',
               'shipments',
               'product_reservations',
+              'checkout_attempts',
+              'checkout_reservation_claims',
           }
           actual = {
               row[0]
@@ -53,18 +55,19 @@ jobs:
           if actual != expected:
               raise SystemExit(f'Unexpected tables: expected={sorted(expected)} actual={sorted(actual)}')
 
+          timestamp = '2026-08-30T20:00:00.000Z'
           connection.execute(
               "INSERT INTO products (id, slug, title, description, price_cents, quantity, condition, category, image_data, status, featured, created_at, updated_at) VALUES (?, ?, ?, '', ?, ?, 'NEW', ?, '[]', 'ACTIVE', 0, ?, ?)",
-              ('prod-test', 'prod-test', 'Test product', 1000, 1, 'Test', '2026-08-30T20:00:00.000Z', '2026-08-30T20:00:00.000Z'),
+              ('prod-test', 'prod-test', 'Test product', 1000, 1, 'Test', timestamp, timestamp),
           )
           connection.execute(
               "INSERT INTO product_reservations (id, product_id, reservation_token, reserved_quantity, status, expires_at, created_at, updated_at) VALUES (?, ?, ?, 1, 'ACTIVE', ?, ?, ?)",
-              ('res-1', 'prod-test', 'token-1', '2099-01-01T00:00:00.000Z', '2026-08-30T20:00:00.000Z', '2026-08-30T20:00:00.000Z'),
+              ('res-1', 'prod-test', 'token-1', '2099-01-01T00:00:00.000Z', timestamp, timestamp),
           )
           try:
               connection.execute(
                   "INSERT INTO product_reservations (id, product_id, reservation_token, reserved_quantity, status, expires_at, created_at, updated_at) VALUES (?, ?, ?, 1, 'ACTIVE', ?, ?, ?)",
-                  ('res-2', 'prod-test', 'token-2', '2099-01-01T00:00:00.000Z', '2026-08-30T20:00:00.000Z', '2026-08-30T20:00:00.000Z'),
+                  ('res-2', 'prod-test', 'token-2', '2099-01-01T00:00:00.000Z', timestamp, timestamp),
               )
           except sqlite3.IntegrityError as exc:
               if 'reservation_capacity_exceeded' not in str(exc):
@@ -75,8 +78,38 @@ jobs:
           connection.execute("UPDATE product_reservations SET status = 'RELEASED' WHERE id = 'res-1'")
           connection.execute(
               "INSERT INTO product_reservations (id, product_id, reservation_token, reserved_quantity, status, expires_at, created_at, updated_at) VALUES (?, ?, ?, 1, 'ACTIVE', ?, ?, ?)",
-              ('res-3', 'prod-test', 'token-3', '2099-01-01T00:00:00.000Z', '2026-08-30T20:00:00.000Z', '2026-08-30T20:00:00.000Z'),
+              ('res-3', 'prod-test', 'token-3', '2099-01-01T00:00:00.000Z', timestamp, timestamp),
           )
+
+          def create_order(order_id, order_number):
+              connection.execute(
+                  "INSERT INTO orders (id, order_number, customer_email, customer_name, shipping_address_line1, shipping_city, shipping_state, shipping_postal_code, shipping_country, subtotal_cents, shipping_amount_cents, total_cents, payment_provider, payment_status, order_status, created_at, updated_at) VALUES (?, ?, 'buyer@example.com', 'Buyer', '1 Main St', 'San Diego', 'CA', '92101', 'US', 1000, 500, 1500, 'STRIPE', 'PENDING', 'PENDING', ?, ?)",
+                  (order_id, order_number, timestamp, timestamp),
+              )
+
+          create_order('order-1', 'MAY-TEST-1')
+          create_order('order-2', 'MAY-TEST-2')
+          connection.execute(
+              "INSERT INTO checkout_attempts (id, idempotency_key, request_fingerprint, order_id, provider, status, created_at, updated_at) VALUES ('attempt-1', 'idem-key-00000001', 'fingerprint-1', 'order-1', 'STRIPE', 'CREATING', ?, ?)",
+              (timestamp, timestamp),
+          )
+          connection.execute(
+              "INSERT INTO checkout_attempts (id, idempotency_key, request_fingerprint, order_id, provider, status, created_at, updated_at) VALUES ('attempt-2', 'idem-key-00000002', 'fingerprint-2', 'order-2', 'STRIPE', 'CREATING', ?, ?)",
+              (timestamp, timestamp),
+          )
+          connection.execute(
+              "INSERT INTO checkout_reservation_claims (reservation_token, checkout_attempt_id, order_id, created_at) VALUES ('token-3', 'attempt-1', 'order-1', ?)",
+              (timestamp,),
+          )
+          try:
+              connection.execute(
+                  "INSERT INTO checkout_reservation_claims (reservation_token, checkout_attempt_id, order_id, created_at) VALUES ('token-3', 'attempt-2', 'order-2', ?)",
+                  (timestamp,),
+              )
+          except sqlite3.IntegrityError:
+              pass
+          else:
+              raise SystemExit('Checkout reservation claim allowed a second order to claim the same token')
 
           violations = list(connection.execute('PRAGMA foreign_key_check'))
           if violations:
