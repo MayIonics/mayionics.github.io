@@ -1,0 +1,59 @@
+name: Verify
+
+on:
+  push:
+    branches:
+      - main
+      - 'p*'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run structural tests
+        run: npm test
+
+      - name: Validate D1 migration syntax
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+
+          migration = Path('migrations/0001_initial_commerce.sql').read_text(encoding='utf-8')
+          connection = sqlite3.connect(':memory:')
+          connection.execute('PRAGMA foreign_keys = ON')
+          connection.executescript(migration)
+
+          expected = {
+              'products',
+              'orders',
+              'order_items',
+              'payments',
+              'shipments',
+              'product_reservations',
+          }
+          actual = {
+              row[0]
+              for row in connection.execute(
+                  "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+              )
+          }
+          if actual != expected:
+              raise SystemExit(f'Unexpected tables: expected={sorted(expected)} actual={sorted(actual)}')
+
+          violations = list(connection.execute('PRAGMA foreign_key_check'))
+          if violations:
+              raise SystemExit(f'Foreign-key violations: {violations}')
+          PY
