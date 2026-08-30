@@ -25,7 +25,7 @@ jobs:
       - name: Run structural tests
         run: npm test
 
-      - name: Validate D1 migrations, reservation capacity, and checkout claims
+      - name: Validate D1 migrations, reservation capacity, checkout claims, and webhook replay
         run: |
           python - <<'PY'
           import sqlite3
@@ -37,14 +37,9 @@ jobs:
               connection.executescript(migration.read_text(encoding='utf-8'))
 
           expected = {
-              'products',
-              'orders',
-              'order_items',
-              'payments',
-              'shipments',
-              'product_reservations',
-              'checkout_attempts',
-              'checkout_reservation_claims',
+              'products', 'orders', 'order_items', 'payments', 'shipments',
+              'product_reservations', 'checkout_attempts', 'checkout_reservation_claims',
+              'webhook_events',
           }
           actual = {
               row[0]
@@ -110,6 +105,28 @@ jobs:
               pass
           else:
               raise SystemExit('Checkout reservation claim allowed a second order to claim the same token')
+
+          connection.execute(
+              "INSERT INTO webhook_events (id, provider, provider_event_id, event_type, provider_payment_id, outcome, payload_hash, result, processed_at, created_at) VALUES ('webhook-1', 'STRIPE', 'evt-1', 'payment_intent.succeeded', 'pi-1', 'SUCCEEDED', 'hash-1', 'APPLIED', ?, ?)",
+              (timestamp, timestamp),
+          )
+          try:
+              connection.execute(
+                  "INSERT INTO webhook_events (id, provider, provider_event_id, event_type, provider_payment_id, outcome, payload_hash, result, processed_at, created_at) VALUES ('webhook-2', 'STRIPE', 'evt-1', 'payment_intent.succeeded', 'pi-1', 'SUCCEEDED', 'hash-1', 'IDEMPOTENT', ?, ?)",
+                  (timestamp, timestamp),
+              )
+          except sqlite3.IntegrityError:
+              pass
+          else:
+              raise SystemExit('Webhook ledger allowed duplicate provider event identity')
+
+          try:
+              connection.execute("UPDATE products SET quantity = -1 WHERE id = 'prod-test'")
+          except sqlite3.IntegrityError as exc:
+              if 'product_quantity_underflow' not in str(exc):
+                  raise
+          else:
+              raise SystemExit('Product quantity underflow guard did not fire')
 
           violations = list(connection.execute('PRAGMA foreign_key_check'))
           if violations:
