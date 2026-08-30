@@ -10,6 +10,7 @@ Current migrations:
 - `0002_reservation_capacity_guards.sql` — database-level active reservation capacity guards.
 - `0003_checkout_attempts.sql` — Stripe/PayPal checkout idempotency and unique reservation-claim ledgers.
 - `0004_webhook_events.sql` — authenticated provider webhook replay ledger and product quantity underflow guard.
+- `0005_label_purchase_attempts.sql` — one unique EasyPost label-purchase claim per shipment.
 
 No migration in the current series performs destructive table/column removal. Before any MayIonics D1 deployment, P9 broadened migration `0003` from Stripe-only checkout attempts to `STRIPE` or `PAYPAL`; there is no deployed migration history to rewrite.
 
@@ -27,7 +28,9 @@ No migration in the current series performs destructive table/column removal. Be
 - A checkout idempotency key maps to one request fingerprint, provider, and order.
 - A provider webhook event identity can be recorded at most once per provider.
 - Product quantity cannot transition below zero.
+- A local shipment can have at most one label-purchase attempt ledger record.
 - Payment success is not authoritative until a verified provider event matches local provider identity, order linkage where available, currency, and stored amount.
+- Label purchase is not eligible until the local order has authoritative `PAID` payment state.
 - Append-only migrations are preferred; destructive schema changes require an explicit later migration and review.
 
 ## Tables
@@ -52,7 +55,7 @@ Payment state: `PENDING`, `PAID`, `FAILED`, `PARTIALLY_REFUNDED`, `REFUNDED`.
 
 Order lifecycle: `PENDING`, `PAID`, `READY_TO_SHIP`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `REFUNDED`.
 
-P8/P9 checkout creates orders in `PENDING`. P10 is the first phase that can transition an order to `PAID`, and only after authenticated provider reconciliation.
+P8/P9 checkout creates orders in `PENDING`. P10 can transition an authenticated payment to `PAID`. P11 can move a fully labeled paid order to `READY_TO_SHIP`, then an authorized admin action can move it to `SHIPPED`.
 
 ### `order_items`
 
@@ -72,7 +75,7 @@ Stores EasyPost shipment/rate identifiers, carrier/service, cost, tracking numbe
 
 Lifecycle: `PENDING`, `LABEL_CREATED`, `IN_TRANSIT`, `DELIVERED`, `CANCELLED`, `ERROR`.
 
-Selected TEST shipping-rate components are snapshotted as `PENDING` shipment rows for a pending order. A populated rate/shipment row does not prove payment or authorize postage purchase.
+Selected TEST shipping-rate components are snapshotted as `PENDING` shipment rows for a pending order. P11 uses those exact provider shipment/rate identities when buying a TEST label. A successful validated TEST buy stores tracking and label URL and moves the shipment to `LABEL_CREATED`.
 
 ### `product_reservations`
 
@@ -118,20 +121,31 @@ Added by P10 as the authenticated provider event replay ledger.
 
 The event insert is included in the same D1 batch as the state transition so a failed transition cannot leave a successful-looking webhook audit row, and a duplicate provider event cannot replay inventory mutation.
 
+### `label_purchase_attempts`
+
+Added by P11 as the local EasyPost label-purchase concurrency/retry ledger.
+
+- `shipment_id` is unique, so one local shipment has one durable purchase claim record.
+- `provider_shipment_id` and `provider_rate_id` snapshot the provider identities used when the claim was created.
+- Lifecycle: `CLAIMED`, `COMPLETED`, `FAILED`.
+- `created_at` and `updated_at` preserve fulfillment audit timing.
+
+A repeat admin request reuses the same claim. A completed claim is idempotent, an in-progress claim blocks another concurrent buy, and a failed claim can be reclaimed for a later retry while preserving provider identity checks.
+
 ## Foreign-Key Policy
 
-Commerce history is preserved with restrictive deletion behavior for products, orders, order items, payments, shipments, checkout attempts, and checkout reservation claims. `webhook_events` intentionally stores provider/audit identities without a foreign key so a historical authenticated event record does not depend on later commerce-row retention.
+Commerce history is preserved with restrictive deletion behavior for products, orders, order items, payments, shipments, checkout attempts, checkout reservation claims, and label purchase attempts. `webhook_events` intentionally stores provider/audit identities without a foreign key so a historical authenticated event record does not depend on later commerce-row retention.
 
 Permanent catalog deletion is not required for V1; products can be marked `HIDDEN`.
 
 ## Indexing
 
-The schema includes indexes for common product, order, payment, shipment, reservation, checkout-attempt, checkout-claim, and provider-webhook lookups. Indexes can be refined later using observed query patterns; speculative analytics indexes remain out of scope.
+The schema includes indexes for common product, order, payment, shipment, reservation, checkout-attempt, checkout-claim, provider-webhook, and label-purchase lookups. Indexes can be refined later using observed query patterns; speculative analytics indexes remain out of scope.
 
 ## Security and Authority Boundary
 
 The browser never accesses D1 directly. Cloudflare Worker code remains authoritative for price, inventory, reservation validity, shipping measurements/rates, order totals, provider payment identity, payment reconciliation, and fulfillment transitions.
 
-Browser-submitted subtotal, shipping amount, total, product price, package measurement, or payment status values are not trusted.
+Browser-submitted subtotal, shipping amount, total, product price, package measurement, payment status, shipment identity, tracking data, and label URLs are not trusted.
 
-Stripe webhook signatures and PayPal Sandbox webhook verification must succeed before a provider event is normalized or reconciled. No provider secrets belong in migrations, browser code, or schema documentation.
+Stripe webhook signatures and PayPal Sandbox webhook verification must succeed before payment reconciliation. EasyPost TEST label responses must match the stored provider shipment identity and contain TEST-mode tracking/label metadata before persistence. No provider secrets belong in migrations, browser code, or schema documentation.

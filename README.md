@@ -6,15 +6,13 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P10 adds authenticated Stripe TEST and PayPal Sandbox payment reconciliation while preserving the P8/P9 checkout authority model.
+P11 adds Access-protected admin order management and TEST-only EasyPost label/tracking fulfillment on top of the P10 reconciliation baseline.
 
-Webhook handlers now verify provider authenticity before touching commerce state. Stripe uses the raw request body plus `Stripe-Signature` and a configured TEST webhook secret. PayPal uses the Sandbox webhook-signature verification endpoint with the configured Sandbox webhook ID and client credentials.
+Admin order routes can list orders, show item/payment/shipment detail, create TEST labels for reconciled paid orders, and mark fully labeled orders shipped. The EasyPost buy-label adapter refuses non-test mode, requires the original stored shipment/rate identities, and validates returned shipment identity, tracking code, and label URL before persisting `LABEL_CREATED` state.
 
-Authenticated supported events are normalized to an exact provider payment identity, USD amount, and outcome. The Worker then matches the existing local `payments` row and authoritative order total before applying any transition. Successful reconciliation records the provider event, consumes reservations, decrements inventory, marks zero-quantity products sold, moves the payment to `SUCCEEDED`, and moves the order to `PAID` in one D1 batch. Matching duplicate success events are idempotent and cannot decrement inventory twice.
+A new `label_purchase_attempts` ledger gives each shipment one unique purchase claim and tracks `CLAIMED`, `COMPLETED`, or `FAILED` state to reduce duplicate/concurrent purchases. Once every shipment has a label and tracking number, the order moves from `PAID` to `READY_TO_SHIP`; `mark-shipped` then moves it to `SHIPPED`.
 
-A new `webhook_events` ledger provides unique provider-event replay protection, and a database trigger blocks negative product quantity. Supported terminal failure events can mark a matching pending payment/order failed/cancelled without decrementing inventory.
-
-No provider request, secret configuration, Cloudflare deployment, live payment, production commerce action, real postage purchase, or NutriLeaf change is performed by P10 repository implementation.
+No EasyPost provider request, real postage purchase, Cloudflare deployment, provider secret configuration, live payment, production commerce action, or NutriLeaf change is performed by P11 repository implementation.
 
 ## Planned architecture
 
@@ -40,6 +38,7 @@ No provider request, secret configuration, Cloudflare deployment, live payment, 
 - [P8 implementation plan](docs/superpowers/plans/2026-08-30-p8-stripe-test-checkout.md)
 - [P9 implementation plan](docs/superpowers/plans/2026-08-30-p9-paypal-sandbox-checkout.md)
 - [P10 implementation plan](docs/superpowers/plans/2026-08-30-p10-payment-reconciliation.md)
+- [P11 implementation plan](docs/superpowers/plans/2026-08-30-p11-admin-orders-labels.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 

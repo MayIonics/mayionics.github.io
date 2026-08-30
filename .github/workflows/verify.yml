@@ -25,7 +25,7 @@ jobs:
       - name: Run structural tests
         run: npm test
 
-      - name: Validate D1 migrations, reservation capacity, checkout claims, and webhook replay
+      - name: Validate D1 migrations and commerce race safeguards
         run: |
           python - <<'PY'
           import sqlite3
@@ -39,7 +39,7 @@ jobs:
           expected = {
               'products', 'orders', 'order_items', 'payments', 'shipments',
               'product_reservations', 'checkout_attempts', 'checkout_reservation_claims',
-              'webhook_events',
+              'webhook_events', 'label_purchase_attempts',
           }
           actual = {
               row[0]
@@ -119,6 +119,24 @@ jobs:
               pass
           else:
               raise SystemExit('Webhook ledger allowed duplicate provider event identity')
+
+          connection.execute(
+              "INSERT INTO shipments (id, order_id, provider, provider_shipment_id, provider_rate_id, carrier, service, shipping_cost_cents, status, created_at, updated_at) VALUES ('shipment-1', 'order-1', 'EASYPOST', 'shp_1', 'rate_1', 'USPS', 'Ground', 500, 'PENDING', ?, ?)",
+              (timestamp, timestamp),
+          )
+          connection.execute(
+              "INSERT INTO label_purchase_attempts (id, shipment_id, status, provider_shipment_id, provider_rate_id, created_at, updated_at) VALUES ('label-1', 'shipment-1', 'CLAIMED', 'shp_1', 'rate_1', ?, ?)",
+              (timestamp, timestamp),
+          )
+          try:
+              connection.execute(
+                  "INSERT INTO label_purchase_attempts (id, shipment_id, status, provider_shipment_id, provider_rate_id, created_at, updated_at) VALUES ('label-2', 'shipment-1', 'CLAIMED', 'shp_1', 'rate_1', ?, ?)",
+                  (timestamp, timestamp),
+              )
+          except sqlite3.IntegrityError:
+              pass
+          else:
+              raise SystemExit('Label purchase ledger allowed a duplicate shipment claim')
 
           try:
               connection.execute("UPDATE products SET quantity = -1 WHERE id = 'prod-test'")
