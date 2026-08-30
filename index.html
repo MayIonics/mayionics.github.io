@@ -12,13 +12,13 @@
     <div class="container header-inner">
       <a class="brand" href="/">MayIonics</a>
       <nav class="primary-nav" aria-label="Primary navigation">
-        <a href="#shop">Shop</a>
-        <a href="#categories">Categories</a>
-        <a href="#reviews">Seller Reviews</a>
-        <a href="#about">About</a>
-        <a href="#shipping">Shipping &amp; Returns</a>
+        <a href="/shop.html">Shop</a>
+        <a href="/categories.html">Categories</a>
+        <a href="/reviews.html">Seller Reviews</a>
+        <a href="/about.html">About</a>
+        <a href="/shipping-returns.html">Shipping &amp; Returns</a>
       </nav>
-      <a class="cart-link" href="#cart" aria-label="Cart">Cart <span id="cart-count">0</span></a>
+      <a class="cart-link" href="/cart.html" aria-label="Cart">Cart <span id="cart-count">0</span></a>
     </div>
   </header>
 
@@ -27,44 +27,64 @@
       <p class="eyebrow">Independent online marketplace</p>
       <h1 id="hero-title">Good finds. Straightforward shopping.</h1>
       <p>Browse quality new, open-box, and pre-owned items with clearly described condition and reliable shipping.</p>
-      <a class="button" href="#shop">Shop All</a>
+      <a class="button" href="/shop.html">Shop All</a>
     </section>
 
-    <section class="section container" id="shop" aria-labelledby="new-arrivals-title">
-      <div class="section-heading"><h2 id="new-arrivals-title">New Arrivals</h2><span>Products will appear here as listings are added.</span></div>
+    <section class="section container" aria-labelledby="new-arrivals-title">
+      <div class="section-heading"><h2 id="new-arrivals-title">New Arrivals</h2><a class="text-link" href="/shop.html">View shop →</a></div>
       <div class="product-grid" aria-label="New arrival placeholders">
-        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><h3>New listing</h3><p>Product details coming soon.</p></article>
-        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><h3>New listing</h3><p>Product details coming soon.</p></article>
-        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><h3>New listing</h3><p>Product details coming soon.</p></article>
-        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><h3>New listing</h3><p>Product details coming soon.</p></article>
+        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><div class="card-body"><p class="eyebrow">Listing shell</p><h3>New listing</h3><p>Live product data will be connected in P4.</p></div></article>
+        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><div class="card-body"><p class="eyebrow">Listing shell</p><h3>New listing</h3><p>Live product data will be connected in P4.</p></div></article>
+        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><div class="card-body"><p class="eyebrow">Listing shell</p><h3>New listing</h3><p>Live product data will be connected in P4.</p></div></article>
+        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><div class="card-body"><p class="eyebrow">Listing shell</p><h3>New listing</h3><p>Live product data will be connected in P4.</p></div></article>
       </div>
     </section>
 
-    <section class="section container" id="categories" aria-labelledby="categories-title">
-      <div class="section-heading"><h2 id="categories-title">Shop by Category</h2><span>Categories will grow with available inventory.</span></div>
+    <section class="section container" aria-labelledby="categories-title">
+      <div class="section-heading"><h2 id="categories-title">Shop by Category</h2><a class="text-link" href="/categories.html">Browse categories →</a></div>
       <div class="category-grid">
-        <div class="category-tile">Electronics</div><div class="category-tile">Home</div><div class="category-tile">Tools</div><div class="category-tile">Collectibles</div><div class="category-tile">Clothing</div><div class="category-tile">Other</div>
+        <a class="category-tile" href="/categories.html">Electronics</a>
+        <a class="category-tile" href="/categories.html">Home</a>
+        <a class="category-tile" href="/categories.html">Tools</a>
+        <a class="category-tile" href="/categories.html">Collectibles</a>
+        <a class="category-tile" href="/categories.html">Clothing</a>
+        <a class="category-tile" href="/categories.html">Other</a>
       </div>
     </section>
 
     <section class="section container" aria-labelledby="featured-title">
-      <div class="section-heading"><h2 id="featured-title">Featured Items</h2><span>Selected listings will be highlighted here.</span></div>
-      <div class="product-grid"><article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><h3>Featured listing</h3><p>Product details coming soon.</p></article><article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><h3>Featured listing</h3><p>Product details coming soon.</p></article></div>
+      <div class="section-heading"><h2 id="featured-title">Featured Items</h2><span>Selected listings will appear here when product data is connected.</span></div>
+      <div class="product-grid compact-grid">
+        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><div class="card-body"><h3>Featured listing</h3><p>Product details coming in P4.</p></div></article>
+        <article class="product-card placeholder-card"><div class="product-media" aria-hidden="true"></div><div class="card-body"><h3>Featured listing</h3><p>Product details coming in P4.</p></div></article>
+      </div>
     </section>
 
-    <section class="section review-section" id="reviews" aria-labelledby="reviews-title">
-      <div class="container review-inner"><div><p class="eyebrow">Established seller history</p><h2 id="reviews-title">Seller Reviews</h2><p>Historical eBay seller feedback will be displayed here and clearly identified as feedback from prior eBay transactions.</p></div><a class="text-link" href="#reviews">View All eBay Reviews →</a></div>
+    <section class="section review-section" aria-labelledby="reviews-title">
+      <div class="container review-inner">
+        <div><p class="eyebrow">Established seller history</p><h2 id="reviews-title">Seller Reviews</h2><p>Historical eBay seller feedback is kept separate from future MayIonics purchase reviews and can be independently verified.</p></div>
+        <a class="text-link" href="/reviews.html">View Seller Reviews →</a>
+      </div>
     </section>
 
     <section class="trust-row container" aria-label="Shopping assurances">
-      <div><strong>Secure Payments</strong><span>Stripe and PayPal are planned for a later test phase.</span></div>
-      <div><strong>Tracked Shipping</strong><span>EasyPost shipping and tracking are planned for a later test phase.</span></div>
-      <div><strong>Clearly Described Condition</strong><span>Each listing will state whether it is new, open-box, or pre-owned.</span></div>
+      <div><strong>Secure Payments</strong><span>Stripe and PayPal will be activated only after sandbox verification.</span></div>
+      <div><strong>Tracked Shipping</strong><span>Shipping rates and tracking will be connected through EasyPost in later phases.</span></div>
+      <div><strong>Clearly Described Condition</strong><span>Listings will identify whether an item is new, open-box, or pre-owned.</span></div>
     </section>
   </main>
 
-  <footer class="site-footer" id="about">
-    <div class="container footer-inner"><div><strong>MayIonics</strong><p>Independent marketplace for everyday finds.</p></div><nav aria-label="Footer navigation"><a href="#about">About</a><a href="#shipping" id="shipping">Shipping &amp; Returns</a><a href="mailto:contact@mayionics.example">Contact</a><a href="#privacy">Privacy</a><a href="#terms">Terms</a></nav></div>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div><strong>MayIonics</strong><p>Independent marketplace for everyday finds.</p></div>
+      <nav aria-label="Footer navigation">
+        <a href="/about.html">About</a>
+        <a href="/shipping-returns.html">Shipping &amp; Returns</a>
+        <a href="/about.html#contact">Contact</a>
+        <a href="/shipping-returns.html#privacy">Privacy</a>
+        <a href="/shipping-returns.html#terms">Terms</a>
+      </nav>
+    </div>
   </footer>
   <script type="module" src="/assets/js/site.js"></script>
 </body>

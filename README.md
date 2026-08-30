@@ -6,9 +6,11 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P2 defines the initial Cloudflare D1 / SQLite commerce schema and append-only migration for products, orders, order items, payments, shipments, and product reservations.
+P3 establishes the complete static customer-facing storefront shell using HTML, CSS, and vanilla JavaScript. Home, Shop, Categories, Product, Seller Reviews, About, Shipping & Returns, Cart, Checkout, and Order Confirmation are now represented as real navigable pages.
 
-The storefront remains static during P2. The D1 schema is defined in the repository but is not yet applied to a Cloudflare database. Stripe, PayPal, EasyPost, and Cloudflare Worker integrations are not active in this phase.
+Commerce behavior remains intentionally inactive in P3. Product data will be connected in P4, cart/reservations in P6, shipping rates in P7, Stripe in P8, PayPal in P9, and order reconciliation/webhooks in P10.
+
+The initial D1 schema from P2 remains defined in the repository but is not yet applied to a Cloudflare database.
 
 ## Planned architecture
 
@@ -25,6 +27,7 @@ The storefront remains static during P2. The D1 schema is defined in the reposit
 - [Version 1 design](docs/superpowers/specs/2026-08-30-mayionics-v1-design.md)
 - [P1 implementation plan](docs/superpowers/plans/2026-08-30-p1-github-pages-baseline.md)
 - [P2 implementation plan](docs/superpowers/plans/2026-08-30-p2-d1-schema-migrations.md)
+- [P3 implementation plan](docs/superpowers/plans/2026-08-30-p3-storefront-shell.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 
