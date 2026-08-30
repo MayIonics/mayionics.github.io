@@ -135,8 +135,10 @@ jobs:
           CONFIG: ${{ steps.config.outputs.path }}
         run: |
           set -uo pipefail
+          set +e
           OUTPUT="$(npx --yes wrangler@4.102.0 deploy --config="$CONFIG" --keep-vars 2>&1)"
           STATUS=$?
+          set -e
           printf '%s\n' "$OUTPUT"
           if [ "$STATUS" -ne 0 ]; then
             echo "Wrangler deploy failed with exit code $STATUS"
