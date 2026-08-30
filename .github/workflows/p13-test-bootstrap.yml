@@ -152,11 +152,40 @@ jobs:
         shell: bash
         env:
           WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+          CONFIG: ${{ steps.config.outputs.path }}
         run: |
           set -euo pipefail
-          STATUS="$(curl --silent --show-error --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' "$WORKER_URL/health")"
+          TAIL_LOG="$RUNNER_TEMP/worker-tail.jsonl"
+          : > "$TAIL_LOG"
+          timeout 20s npx --yes wrangler@4.102.0 tail "$TEST_WORKER_NAME" --format=json --config="$CONFIG" > "$TAIL_LOG" 2>&1 &
+          TAIL_PID=$!
+          sleep 4
+
+          STATUS="$(curl --silent --show-error --dump-header "$RUNNER_TEMP/health.headers" --output "$RUNNER_TEMP/health.json" --write-out '%{http_code}' "$WORKER_URL/health")"
+
+          sleep 2
+          kill "$TAIL_PID" 2>/dev/null || true
+          wait "$TAIL_PID" 2>/dev/null || true
+
+          echo 'Health response body:'
           cat "$RUNNER_TEMP/health.json"
-          test "$STATUS" = '200' || { echo "Health check failed with HTTP $STATUS"; exit 1; }
+          echo
+          echo 'Health response headers:'
+          cat "$RUNNER_TEMP/health.headers"
+          CF_RAY="$(awk 'BEGIN{IGNORECASE=1} /^cf-ray:/ {sub(/\r$/, "", $0); print substr($0, index($0, ":") + 2); exit}' "$RUNNER_TEMP/health.headers")"
+          echo "cf-ray: ${CF_RAY:-missing}"
+
+          if [ "$STATUS" != '200' ]; then
+            echo "Health check failed with HTTP $STATUS"
+            echo 'Worker tail diagnostics:'
+            if [ -s "$TAIL_LOG" ]; then
+              cat "$TAIL_LOG"
+            else
+              echo 'No Worker tail event was captured for the health request.'
+            fi
+            exit 1
+          fi
+
           jq -e '.ok == true and .service == "mayionics-api"' "$RUNNER_TEMP/health.json" >/dev/null
 
       - name: Verify TEST D1 schema

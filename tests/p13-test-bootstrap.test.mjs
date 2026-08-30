@@ -71,6 +71,17 @@ test('temporary Wrangler config resolves the Worker entrypoint from the reposito
   assert.match(yaml, /src\/worker\.js/);
 });
 
+test('health verification captures Cloudflare response headers and a bounded Worker tail on failure', () => {
+  const yaml = readFileSync(path, 'utf8');
+  const healthStep = yaml.slice(yaml.indexOf('- name: Verify TEST Worker health'), yaml.indexOf('- name: Verify TEST D1 schema'));
+  assert.match(healthStep, /wrangler@4\.102\.0 tail/);
+  assert.match(healthStep, /timeout\s+20s/);
+  assert.match(healthStep, /--format=json/);
+  assert.match(healthStep, /health\.headers/);
+  assert.match(healthStep, /cf-ray/i);
+  assert.match(healthStep, /Worker tail diagnostics/);
+});
+
 test('bootstrap does not configure or invoke commerce provider secrets', () => {
   const yaml = readFileSync(path, 'utf8');
   for (const name of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID', 'EASYPOST_API_KEY']) {
