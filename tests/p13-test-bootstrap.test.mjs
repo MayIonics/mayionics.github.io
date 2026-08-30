@@ -65,6 +65,12 @@ test('deploy step disables inherited errexit before capturing Wrangler failure o
   assert.match(deployStep, /Wrangler deploy failed with exit code/);
 });
 
+test('temporary Wrangler config resolves the Worker entrypoint from the repository workspace', () => {
+  const yaml = readFileSync(path, 'utf8');
+  assert.match(yaml, /GITHUB_WORKSPACE/);
+  assert.match(yaml, /src\/worker\.js/);
+});
+
 test('bootstrap does not configure or invoke commerce provider secrets', () => {
   const yaml = readFileSync(path, 'utf8');
   for (const name of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID', 'EASYPOST_API_KEY']) {
