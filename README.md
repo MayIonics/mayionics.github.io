@@ -6,13 +6,13 @@ Development site: https://mayionics.github.io/
 
 ## Current phase
 
-P12 completes the storefront trust/content layer while keeping production commerce inactive.
+P13 has completed the dedicated non-production Cloudflare bootstrap. The TEST Worker `mayionics-api-test` and TEST D1 database `mayionics-test` were verified by the manual P13 GitHub Actions workflow: the existing P1–P12 schema was confirmed, only the dedicated TEST Worker was deployed, and the Worker health endpoint returned the expected response.
 
-The Seller Reviews page now presents selected historical eBay seller feedback from the supplied public feedback record, clearly identifies it as prior eBay feedback rather than MayIonics purchase reviews, and links to the public eBay profile for independent verification. NutriLeaf/Etsy product reviews are not reused for MayIonics.
+P12’s storefront trust/content layer remains in place. The Seller Reviews page presents selected historical eBay seller feedback, clearly identified as prior eBay feedback rather than MayIonics purchase reviews, and links to the public eBay profile for independent verification. NutriLeaf/Etsy product reviews are not reused for MayIonics.
 
-The About page explains the independent resale model and condition-transparency approach. Shipping & Returns, Privacy, and Terms now contain pre-launch Version 1 policy content covering U.S. tracked shipping, planned returns, customer/order data, provider-handled payment credentials, localStorage cart state, product condition/availability, authoritative pricing/payment, and development-site status. These policy drafts require a final P14 launch review before production checkout is enabled.
+The About, Shipping & Returns, Privacy, and Terms pages contain pre-launch Version 1 policy content. These drafts require a final P14 launch review before production checkout is enabled.
 
-P12 changes storefront content and documentation only. It does not modify Worker/D1 commerce behavior or perform any Cloudflare, Stripe, PayPal, EasyPost, production-commerce, or NutriLeaf action.
+P14 will configure and verify only Stripe TEST and PayPal Sandbox checkout paths. EasyPost remains blocked pending separate API-access support resolution; no EasyPost request, label, postage, wallet funding, carrier subscription, or production shipping action is part of P14.
 
 ## Planned architecture
 
@@ -40,6 +40,7 @@ P12 changes storefront content and documentation only. It does not modify Worker
 - [P10 implementation plan](docs/superpowers/plans/2026-08-30-p10-payment-reconciliation.md)
 - [P11 implementation plan](docs/superpowers/plans/2026-08-30-p11-admin-orders-labels.md)
 - [P12 implementation plan](docs/superpowers/plans/2026-08-30-p12-reviews-policies.md)
+- [P13 implementation plan](docs/superpowers/plans/2026-08-30-p13-test-environment-bootstrap.md)
 - [D1 schema specification](docs/SCHEMA_SPEC.md)
 - [Current project state](docs/PROJECT_STATE.md)
 
