@@ -2,10 +2,10 @@
 
 Project: MayIonics  
 Repository: MayIonics/mayionics.github.io  
-Current phase: P12  
-Status: seller reviews and pre-launch policy/about content implemented; final verification in progress  
+Current phase: P13  
+Status: dedicated non-production Cloudflare TEST environment bootstrap verified  
 Development site: https://mayionics.github.io/  
-Next phase: P13 — complete TEST/Sandbox checkout verification
+Next phase: P14 — configure and verify Stripe TEST and PayPal Sandbox checkout paths
 
 ## Verified Baselines
 
@@ -31,11 +31,15 @@ P10 added authenticated Stripe TEST / PayPal Sandbox webhook reconciliation, pro
 
 P11 added Access-protected admin order views plus TEST-only EasyPost label/tracking fulfillment through PR #12.
 
+P12 added seller reviews and pre-launch policy/about content through PR #13.
+
+P13 completed the dedicated non-production Cloudflare environment bootstrap through PRs #14–#19. GitHub Actions run 33343141668 completed successfully against main commit f88abb7aa1a43890660c55419764f3291e4fd026. It confirmed the existing P1–P12 schema in the dedicated TEST D1 database, deployed only `mayionics-api-test`, and passed the bounded Worker health verification. The Worker health endpoint was independently rechecked after the workflow and returned `{"ok":true,"service":"mayionics-api"}`.
+
 ## P12 Scope
 
 P12 completes the non-commerce trust and policy layer.
 
-- `reviews.html` now shows selected historical eBay seller feedback from the supplied public feedback record.
+- `reviews.html` shows selected historical eBay seller feedback from the supplied public feedback record.
 - Historical feedback is explicitly labeled as eBay seller feedback and explicitly not presented as MayIonics purchase reviews.
 - The page links to the public eBay feedback profile for independent source verification.
 - NutriLeaf/Etsy product reviews are not reused for MayIonics.
@@ -53,10 +57,17 @@ No customer contact email or other invented contact detail is published; a dedic
 
 ## Active Boundaries
 
-P12 changes only storefront content/documentation. No Worker/D1 runtime, migration, Cloudflare setting, provider secret, Stripe/PayPal operation, EasyPost request, real postage purchase, production payment, or production commerce setting is created or modified.
+P13 created and verified only the dedicated MayIonics TEST infrastructure:
 
-MayIonics remains isolated from NutriLeaf. No NutriLeaf repository, deployment, database, provider configuration, secret, or infrastructure is modified.
+- Worker: `mayionics-api-test`
+- Worker URL: `https://mayionics-api-test.adam-d-may-20.workers.dev`
+- D1 database: `mayionics-test`
+- D1 binding: `MAYIONICS_DB`
+
+P13 made no Stripe, PayPal, EasyPost, production-commerce, production-Cloudflare, or NutriLeaf change. No provider secret is committed in this repository or exposed to browser code.
+
+EasyPost is temporarily on hold pending separate support resolution for MayIonics API access. Until that is resolved, no EasyPost API request, real label/postage purchase, wallet funding, carrier subscription, production credential, or production-shipping activation is authorized. MayIonics EasyPost configuration must remain separate from NutriLeaf’s future separate EasyPost account.
 
 ## Next
 
-P13 requires deployment of the already-tested Worker/D1 architecture into a dedicated non-production MayIonics environment plus TEST/Sandbox provider credentials and webhook configuration so end-to-end checkout paths can be exercised. Production/live provider modes remain prohibited.
+P14 is limited to the already-built Stripe TEST and PayPal Sandbox checkout paths. It may configure only their required TEST/Sandbox Worker secrets and webhook settings, then perform controlled end-to-end TEST/Sandbox checkout verification with payment reconciliation. It must not configure or invoke EasyPost, use any Live provider mode, or make any production-commerce or NutriLeaf change.
